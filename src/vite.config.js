@@ -6,6 +6,8 @@ export default defineConfig({
         laravel({
             input: ["resources/css/app.css", "resources/js/app.js"],
             refresh: true,
+            // Force HTTPS for asset URLs in production
+            buildDirectory: 'build',
         }),
     ],
     server: {

@@ -40,6 +40,7 @@ ENV APP_KEY=base64:bKgR/552hTzM1F7jDXIcr9Yt/YXUIKJ4uyIdMZN0spc=
 ENV APP_ENV=production
 ENV APP_DEBUG=true
 ENV APP_URL=https://rentacar-app.onrender.com
+ENV ASSET_URL=https://rentacar-app.onrender.com
 ENV LOG_CHANNEL=stderr
 ENV DB_CONNECTION=pgsql
 ENV DB_HOST=aws-0-ap-northeast-1.pooler.supabase.com
