@@ -13,20 +13,31 @@ class Option extends Model
         'name',
         'description',
         'price',
-        'type',
         'is_quantity',
-        'image',
+        'image_path',
+        'price_type',
+        'sort_order',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
         'is_quantity' => 'boolean',
     ];
 
-    public function reservations()
+    /**
+     * デフォルトの並び順
+     */
+    protected static function booted()
     {
-        return $this->belongsToMany(Reservation::class)
-            ->withPivot('quantity', 'price', 'total_price')
-            ->withTimestamps();
+        static::addGlobalScope('ordered', function ($builder) {
+            $builder->orderBy('sort_order', 'asc')->orderBy('id', 'asc');
+        });
+    }
+
+    public function getPriceTypeTextAttribute()
+    {
+        return [
+            'per_piece' => '1個あたり',
+            'per_day' => '1日あたり',
+        ][$this->price_type] ?? '不明';
     }
 }

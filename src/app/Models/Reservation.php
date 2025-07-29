@@ -2,17 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Carbon\Carbon;
 
 class Reservation extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'car_id',
         'user_id',
+        'car_id',
         'name_kanji',
         'name_kana_sei',
         'name_kana_mei',
@@ -25,33 +24,33 @@ class Reservation extends Model
         'flight_return',
         'number_of_adults',
         'number_of_children',
-        'notes',
         'start_datetime',
         'end_datetime',
         'options_json',
-        'status',
         'total_price',
+        'status',
+        'notes',
     ];
 
     protected $casts = [
         'start_datetime' => 'datetime',
         'end_datetime' => 'datetime',
+        'flight_departure' => 'datetime',
+        'flight_return' => 'datetime',
         'options_json' => 'array',
     ];
-    
-    public function car()
-    {
-        return $this->belongsTo(Car::class);
-    }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    // App\Models\Reservation.php
+    public function car(): BelongsTo
+    {
+        return $this->belongsTo(Car::class);
+    }
 
-    public function options()
+    public function options(): BelongsToMany
     {
         return $this->belongsToMany(Option::class)
             ->withPivot('quantity', 'price', 'total_price')

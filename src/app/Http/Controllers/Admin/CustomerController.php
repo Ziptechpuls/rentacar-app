@@ -15,32 +15,71 @@ class CustomerController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone_number', 'like', "%{$search}%");
+                  ->orWhereHas('reservations', function ($reservationQuery) use ($search) {
+                      $reservationQuery->where('phone_main', 'like', "%{$search}%");
+                  });
             });
         }
 
         // 予約日付フィルタ（日付範囲）
-        if ($startDate = $request->input('start_date')) {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        
+        if ($startDate && $endDate && $startDate === $endDate) {
+            // 同じ日の場合：その日出発の予約を検索
             $query->whereHas('reservations', function ($q) use ($startDate) {
-                $q->whereDate('start_datetime', '>=', $startDate);
+                $q->whereDate('start_datetime', '=', $startDate);
             });
-        }
-        if ($endDate = $request->input('end_date')) {
-            $query->whereHas('reservations', function ($q) use ($endDate) {
-                $q->whereDate('end_datetime', '<=', $endDate);
-            });
+        } else {
+            // 異なる日または片方のみの場合：範囲検索
+            if ($startDate) {
+                $query->whereHas('reservations', function ($q) use ($startDate) {
+                    $q->whereDate('start_datetime', '>=', $startDate);
+                });
+            }
+            if ($endDate) {
+                $query->whereHas('reservations', function ($q) use ($endDate) {
+                    $q->whereDate('end_datetime', '<=', $endDate);
+                });
+            }
         }
 
         // ページネーションで取得
         $customers = $query->with(['reservations' => function ($q) use ($startDate, $endDate) {
-            if ($startDate) {
-                $q->whereDate('start_datetime', '>=', $startDate);
-            }
-            if ($endDate) {
-                $q->whereDate('end_datetime', '<=', $endDate);
+            if ($startDate && $endDate && $startDate === $endDate) {
+                // 同じ日の場合：その日出発の予約のみ
+                $q->whereDate('start_datetime', '=', $startDate);
+            } else {
+                // 異なる日または片方のみの場合：範囲検索
+                if ($startDate) {
+                    $q->whereDate('start_datetime', '>=', $startDate);
+                }
+                if ($endDate) {
+                    $q->whereDate('end_datetime', '<=', $endDate);
+                }
             }
             $q->with(['car.carModel']);
-        }])->paginate(15);
+        }])->get();
+
+        // 各ユーザーの最新の予約から電話番号とオプションを取得
+        $customersWithPhone = $customers->map(function ($customer) {
+            $latestReservation = $customer->reservations->sortByDesc('created_at')->first();
+            $customer->phone_main = $latestReservation ? $latestReservation->phone_main : null;
+            $customer->latest_options = $latestReservation ? $latestReservation->options : collect();
+            return $customer;
+        });
+
+        // ページネーションを手動で実装
+        $perPage = 15;
+        $currentPage = request()->get('page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+        $customers = new \Illuminate\Pagination\LengthAwarePaginator(
+            $customersWithPhone->slice($offset, $perPage),
+            $customersWithPhone->count(),
+            $perPage,
+            $currentPage,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
 
         return view('admin.customers.index', compact('customers'));
     }

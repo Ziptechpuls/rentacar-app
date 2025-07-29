@@ -14,18 +14,12 @@
                 <button id="next-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                     翌月 →
                 </button>
-                <a href="{{ route('admin.reservations.create') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    新規予約
-                </a>
             </div>
         </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-6">
+        <div class="px-4 sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <div class="flex justify-between items-center mb-6">
@@ -52,6 +46,9 @@
                             <p>• <span class="font-medium">黄色</span>: 保留中予約（確認待ち）</p>
                             <p>• 予約期間は開始日から終了日まで同じ色で表示されます</p>
                             <p>• 空いている日には「予約追加」ボタンが表示されます</p>
+                            <p>• 各日付の下に <span class="font-medium text-green-600">🚗出発件数</span> と <span class="font-medium text-blue-600">🏁返却件数</span> を表示</p>
+                            <p>• 「予約追加」ボタンから月跨ぎ予約も自由に作成可能</p>
+                            <p>• <span class="font-medium text-red-600">🔧車検最終日</span> の赤いマークで車検日をお知らせ</p>
                         </div>
                     </div>
 
@@ -75,7 +72,7 @@
                 <div class="p-6">
                     <div class="flex justify-between items-center">
                         <h3 class="text-lg font-medium text-gray-900" id="month-display">
-                            {{ Carbon\Carbon::create($year, $month, 1)->format('Y年m月') }}
+                            {{ Carbon\Carbon::today()->format('Y年m月') }}
                         </h3>
                         <div class="text-sm text-gray-500">
                             総予約数: <span class="font-semibold">{{ $reservations->total() }}</span>
@@ -87,7 +84,7 @@
             <!-- 車両×カレンダーグリッド -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full border border-gray-200" id="reservation-grid">
+                    <table class="w-full border border-gray-200" id="reservation-grid">
                         <thead class="bg-gray-50 sticky-header">
                             <tr>
                                 <th class="sticky left-0 z-10 bg-gray-50 border-r border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-64 sticky-car-info">
@@ -99,14 +96,68 @@
                                     </div>
                                 </th>
                                 @php
-                                    $currentDate = Carbon\Carbon::create($year, $month, 1)->startOfMonth();
-                                    $endDate = Carbon\Carbon::create($year, $month, 1)->endOfMonth();
+                                    // 今日の日付を基準に表示範囲を設定
+                                    $today = Carbon\Carbon::today();
+                                    $currentDate = $today->copy()->subMonth();
+                                    $endDate = $today->copy()->addMonth();
                                 @endphp
                                 @while($currentDate <= $endDate)
-                                    <th class="border-b border-gray-200 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-12">
+                                    @php
+                                        // その日の出発件数（予約開始件数）
+                                        $currentDateString = $currentDate->format('Y-m-d');
+                                        
+                                        $departureCount = $cars->sum(function($car) use ($currentDateString) {
+                                            return $car->reservations->where('status', '!=', 'cancelled')
+                                                ->filter(function($reservation) use ($currentDateString) {
+                                                    return $reservation->start_datetime->format('Y-m-d') === $currentDateString;
+                                                })
+                                                ->count();
+                                        });
+                                        
+                                        // その日の返却件数（予約終了件数）
+                                        $returnCount = $cars->sum(function($car) use ($currentDateString) {
+                                            return $car->reservations->where('status', '!=', 'cancelled')
+                                                ->filter(function($reservation) use ($currentDateString) {
+                                                    return $reservation->end_datetime->format('Y-m-d') === $currentDateString;
+                                                })
+                                                ->count();
+                                        });
+                                        
+                                        // その日の在庫数を計算
+                                        $totalCars = $cars->count();
+                                        $reservedCars = $cars->sum(function($car) use ($currentDateString) {
+                                            return $car->reservations->where('status', '!=', 'cancelled')
+                                                ->filter(function($reservation) use ($currentDateString) {
+                                                    return $reservation->start_datetime->format('Y-m-d') <= $currentDateString 
+                                                        && $reservation->end_datetime->format('Y-m-d') >= $currentDateString;
+                                                })
+                                                ->count();
+                                        });
+                                        $availableCars = $totalCars - $reservedCars;
+                                    @endphp
+                                    <th class="date-cell border-b border-gray-200 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider {{ $availableCars == 0 ? 'bg-red-50' : '' }}">
                                         <div class="text-center">
-                                            <div class="font-bold text-gray-700">{{ $currentDate->format('d') }}</div>
+                                            <div class="font-bold text-gray-700">{{ $currentDate->format('n/j') }}</div>
                                             <div class="text-xs text-gray-400 font-medium">{{ $currentDate->format('D') }}</div>
+                                            
+                                            <!-- 在庫数表示 -->
+                                            <div class="mt-1 text-xs">
+                                                <div class="text-gray-600 font-medium">
+                                                    在庫: <span class="{{ $availableCars > 0 ? 'text-green-600' : 'text-red-600' }} font-bold">{{ $availableCars }}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- 出発・返却件数表示 -->
+                                            @if($departureCount > 0 || $returnCount > 0)
+                                                <div class="mt-1 flex items-center justify-center gap-1 text-xs">
+                                                    @if($departureCount > 0)
+                                                        <span class="text-green-600 font-medium">🚗{{ $departureCount }}</span>
+                                                    @endif
+                                                    @if($returnCount > 0)
+                                                        <span class="text-blue-600 font-medium">🏁{{ $returnCount }}</span>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
                                     </th>
                                     @php
@@ -120,8 +171,8 @@
                                 <tr class="hover:bg-gray-50">
                                     <!-- 車両情報列（固定） -->
                                     <td class="sticky left-0 z-10 bg-white border-r border-gray-200 px-4 py-3 sticky-car-info min-w-64">
-                                        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 shadow-sm">
-                                            <div class="flex items-start justify-between mb-3">
+                                        <div class="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
+                                            <div class="flex items-start justify-between mb-2">
                                                 <div class="flex-1 min-w-0">
                                                     <div class="flex items-center mb-2">
                                                         <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
@@ -129,26 +180,30 @@
                                                             {{ $car->carModel->name }}
                                                         </h4>
                                                     </div>
-                                                    <div class="flex items-center space-x-2 mb-2">
-                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $car->is_published ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                            <span class="w-1.5 h-1.5 rounded-full mr-1 {{ $car->is_published ? 'bg-green-400' : 'bg-red-400' }}"></span>
-                                                            {{ $car->is_published ? '公開' : '非公開' }}
-                                                        </span>
-                                                        <span class="text-xs text-gray-500 font-mono">#{{ $car->id }}</span>
-                                                    </div>
-                                                    <div class="flex items-center justify-between">
-                                                        <div class="text-xs text-gray-600">
-                                                            <span class="font-semibold text-blue-600">¥{{ number_format($car->price) }}</span>
-                                                            <span class="text-gray-500">/日</span>
+                                                    <div class="space-y-1 mb-2">
+                                                        <!-- 状態表示行 -->
+                                                        <div class="flex items-center space-x-2">
+                                                            <span class="text-xs text-gray-600 font-medium">状態:</span>
+                                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $car->is_public ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                                                <span class="w-1.5 h-1.5 rounded-full mr-1 {{ $car->is_public ? 'bg-green-400' : 'bg-red-400' }}"></span>
+                                                                {{ $car->is_public ? '公開中' : '非公開中' }}
+                                                            </span>
                                                         </div>
-                                                        <div class="text-xs text-gray-500">
-                                                            予約: <span class="font-semibold text-gray-700">{{ $car->reservations->where('status', '!=', 'cancelled')->count() }}</span>
+                                                        
+                                                        <!-- 編集ボタン行 -->
+                                                        <div class="flex items-center space-x-2">
+                                                            <span class="text-xs text-gray-600 font-medium">編集:</span>
+                                                            <button class="toggle-visibility-btn text-xs px-2 py-1 rounded border hover:bg-gray-50 transition-colors {{ $car->is_public ? 'text-red-600 border-red-200 hover:bg-red-50' : 'text-green-600 border-green-200 hover:bg-green-50' }}"
+                                                                    data-car-id="{{ $car->id }}"
+                                                                    data-current-status="{{ $car->is_public ? 'public' : 'private' }}">
+                                                                {{ $car->is_public ? '非公開にする' : '公開にする' }}
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="flex justify-center">
-                                                <button class="add-reservation-btn bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+                                            <div>
+                                                <button class="add-reservation-btn reservation-button w-full bg-blue-600 text-white px-4 py-4 rounded-lg text-base font-medium hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
                                                         data-car-id="{{ $car->id }}"
                                                         data-car-name="{{ $car->carModel->name }}"
                                                         data-car-price="{{ $car->price }}">
@@ -157,25 +212,37 @@
                                                     </svg>
                                                     予約追加
                                                 </button>
+
                                             </div>
                                         </div>
                                     </td>
                                     
                                     <!-- 日付列 -->
                                     @php
-                                        $currentDate = Carbon\Carbon::create($year, $month, 1)->startOfMonth();
-                                        $endDate = Carbon\Carbon::create($year, $month, 1)->endOfMonth();
+                                        // 今日を基準として前後1ヶ月を表示
+                                        $baseDate = Carbon\Carbon::today(); // 今日
+                                        $currentDate = $baseDate->copy()->subMonth(); // 1ヶ月前から開始
+                                        $endDate = $baseDate->copy()->addMonth(); // 1ヶ月後まで表示
                                     @endphp
                                     @while($currentDate <= $endDate)
                                         @php
                                             $dayReservations = $car->reservations->filter(function($reservation) use ($currentDate) {
                                                 return $reservation->status != 'cancelled' &&
-                                                       $reservation->start_datetime->toDateString() <= $currentDate->toDateString() &&
-                                                       $reservation->end_datetime->toDateString() >= $currentDate->toDateString();
+                                                       $reservation->start_datetime->format('Y-m-d') <= $currentDate->format('Y-m-d') &&
+                                                       $reservation->end_datetime->format('Y-m-d') >= $currentDate->format('Y-m-d');
                                             });
                                             
                                             $isToday = $currentDate->isToday();
                                             $isWeekend = $currentDate->isWeekend();
+                                            $isPast = $currentDate->isPast() && !$isToday;
+                                            
+                                            // テスト用：最初の車両を8/15車検に設定（実際のデータベース対応版は下のコメントアウト）
+                                            $isInspectionDay = false;
+                                            if ($car->id === $cars->first()->id && $currentDate->format('m-d') === '08-15') {
+                                                $isInspectionDay = true;
+                                            }
+                                            // 実際のデータベース対応版：
+                                            // $isInspectionDay = $car->inspection_date && $car->inspection_date->format('Y-m-d') === $currentDate->format('Y-m-d');
                                             
                                             // 予約期間の開始・終了・中間を判定（修正版）
                                             $isReservationStart = $car->reservations->contains(function($reservation) use ($currentDate) {
@@ -218,14 +285,17 @@
                                             $currentDateFormatted = $currentDate->format('Y-m-d');
                                         @endphp
                                         
-                                        <td class="border border-gray-200 px-1 py-2 text-center min-w-12 relative
+                                        <td class="date-cell border border-gray-200 px-1 py-2 text-center relative
                                                     {{ $isToday ? 'today-cell' : '' }}
                                                     {{ $isWeekend ? 'weekend-cell' : '' }}
+                                                    {{ $isPast ? 'past-cell' : '' }}
+                                                    {{ $isInspectionDay ? 'inspection-cell' : '' }}
                                                     {{ $reservationClass }}"
                                             data-date="{{ $currentDateFormatted }}"
                                             data-car-id="{{ $car->id }}"
                                             data-car-name="{{ $car->carModel->name }}"
-                                            data-car-price="{{ $car->price }}">
+                                            data-car-price="{{ $car->price }}"
+                                            {{ $isPast ? 'data-past="true"' : '' }}>
                                             
                                             @if($dayReservations->count() > 0)
                                                 @foreach($dayReservations as $reservation)
@@ -236,10 +306,10 @@
                                                          data-reservation-id="{{ $reservation->id }}"
                                                          data-reservation-start="{{ $reservation->start_datetime->format('Y-m-d') }}"
                                                          data-reservation-end="{{ $reservation->end_datetime->format('Y-m-d') }}"
-                                                         title="{{ $reservation->name_kanji ?? $reservation->user->name ?? 'ゲスト' }} - {{ $reservation->status === 'confirmed' ? '確定' : ($reservation->status === 'pending' ? '保留' : 'キャンセル') }} ({{ $reservation->start_datetime->format('m/d') }}〜{{ $reservation->end_datetime->format('m/d') }})">
+                                                         title="{{ $reservation->name_kanji ?? $reservation->user->name ?? 'ゲスト' }} - {{ $reservation->status === 'confirmed' ? '確定' : ($reservation->status === 'pending' ? '保留' : 'キャンセル') }} ({{ $reservation->start_datetime->format('m/d H:i') }}〜{{ $reservation->end_datetime->format('m/d H:i') }})">
                                                         @if($isReservationStart)
                                                             <div class="font-bold text-sm">{{ Str::limit($reservation->name_kanji ?? $reservation->user->name ?? 'ゲスト', 8) }}</div>
-                                                            <div class="text-xs opacity-80 mt-1 font-medium">{{ $reservation->start_datetime->format('m/d') }}〜{{ $reservation->end_datetime->format('m/d') }}</div>
+                                                            <div class="text-xs opacity-80 mt-1 font-medium">{{ $reservation->start_datetime->format('m/d H:i') }}〜{{ $reservation->end_datetime->format('m/d H:i') }}</div>
                                                         @else
                                                             <div class="text-center opacity-70 font-bold">●</div>
                                                         @endif
@@ -249,9 +319,18 @@
                                                 <div class="text-gray-300 text-xs">-</div>
                                             @endif
                                             
-                                            <!-- 予約追加ボタン（ホバー時表示、予約がない日のみ） -->
-                                            @if($dayReservations->count() == 0)
-                                                <button class="add-reservation-day-btn absolute inset-0 w-full h-full opacity-0 hover:opacity-100 transition-opacity bg-blue-100 text-blue-600 text-xs font-medium rounded"
+                                            <!-- 車検マーク -->
+                                            @if($isInspectionDay)
+                                                <div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                                                    <div class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-lg border-2 border-red-600">
+                                                        🔧 車検最終日
+                                                    </div>
+                                                </div>
+                                            @endif
+                                            
+                                            <!-- 予約追加ボタン（ホバー時表示、予約がない日かつ過去でない場合のみ） -->
+                                            @if($dayReservations->count() == 0 && !$isPast)
+                                                <button class="add-reservation-day-btn reservation-button absolute inset-0 w-full h-full opacity-0 hover:opacity-100 transition-opacity bg-blue-100 text-blue-600 text-xs font-medium rounded"
                                                         data-car-id="{{ $car->id }}"
                                                         data-car-name="{{ $car->carModel->name }}"
                                                         data-car-price="{{ $car->price }}"
@@ -281,6 +360,20 @@
                 <form id="reservation-form" method="POST" action="{{ route('admin.reservations.store') }}">
                     @csrf
                     <input type="hidden" name="car_id" id="modal-car-id">
+                    <input type="hidden" name="start_datetime" id="modal-start-datetime">
+                    <input type="hidden" name="end_datetime" id="modal-end-datetime">
+                    
+                    <!-- 営業時間情報 -->
+                    @if($parsedBusinessHours)
+                        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <strong>営業時間:</strong> {{ $parsedBusinessHours['start'] }}〜{{ $parsedBusinessHours['end'] }}
+                            </p>
+                            <p class="text-xs text-blue-600 mt-1">
+                                ※ 営業時間外の時間は選択できません
+                            </p>
+                        </div>
+                    @endif
                     
                     <div class="grid grid-cols-2 gap-6">
                         <!-- 左列 -->
@@ -291,15 +384,75 @@
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">開始日</label>
-                                <input type="date" name="start_date" id="modal-start-date" required 
+                                <label class="block text-sm font-medium text-gray-700">開始日<span class="text-red-500">*</span></label>
+                                <input type="text" name="start_date" id="modal-start-date" required 
                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">終了日</label>
-                                <input type="date" name="end_date" id="modal-end-date" required 
+                                <label class="block text-sm font-medium text-gray-700">開始時間<span class="text-red-500">*</span></label>
+                                <select name="start_time" id="modal-start-time" required 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    @php
+                                        $businessStartHour = $parsedBusinessHours ? (int)substr($parsedBusinessHours['start'], 0, 2) : 8;
+                                        $businessStartMinute = $parsedBusinessHours ? (int)substr($parsedBusinessHours['start'], 3, 2) : 0;
+                                        $businessEndHour = $parsedBusinessHours ? (int)substr($parsedBusinessHours['end'], 0, 2) : 21;
+                                        $businessEndMinute = $parsedBusinessHours ? (int)substr($parsedBusinessHours['end'], 3, 2) : 0;
+                                    @endphp
+                                    @for ($hour = $businessStartHour; $hour <= $businessEndHour; $hour++)
+                                        @for ($minute = 0; $minute < 60; $minute += 5)
+                                            @php
+                                                $time = sprintf('%02d:%02d', $hour, $minute);
+                                                $selected = '08:00' == $time ? 'selected' : '';
+                                                
+                                                // 営業時間の範囲内かどうかを厳密にチェック
+                                                $timeMinutes = $hour * 60 + $minute;
+                                                $startMinutes = $businessStartHour * 60 + $businessStartMinute;
+                                                $endMinutes = $businessEndHour * 60 + $businessEndMinute;
+                                                $isWithinBusinessHours = $timeMinutes >= $startMinutes && $timeMinutes <= $endMinutes;
+                                                
+                                                // 営業時間外の場合はスキップ
+                                                if (!$isWithinBusinessHours) {
+                                                    continue;
+                                                }
+                                            @endphp
+                                            <option value="{{ $time }}" {{ $selected }}>{{ $time }}</option>
+                                        @endfor
+                                    @endfor
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">終了日<span class="text-red-500">*</span></label>
+                                <input type="text" name="end_date" id="modal-end-date" required 
                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">終了時間<span class="text-red-500">*</span></label>
+                                <select name="end_time" id="modal-end-time" required 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    @for ($hour = $businessStartHour; $hour <= $businessEndHour; $hour++)
+                                        @for ($minute = 0; $minute < 60; $minute += 5)
+                                            @php
+                                                $time = sprintf('%02d:%02d', $hour, $minute);
+                                                $selected = '21:00' == $time ? 'selected' : '';
+                                                
+                                                // 営業時間の範囲内かどうかを厳密にチェック
+                                                $timeMinutes = $hour * 60 + $minute;
+                                                $startMinutes = $businessStartHour * 60 + $businessStartMinute;
+                                                $endMinutes = $businessEndHour * 60 + $businessEndMinute;
+                                                $isWithinBusinessHours = $timeMinutes >= $startMinutes && $timeMinutes <= $endMinutes;
+                                                
+                                                // 営業時間外の場合はスキップ
+                                                if (!$isWithinBusinessHours) {
+                                                    continue;
+                                                }
+                                            @endphp
+                                            <option value="{{ $time }}" {{ $selected }}>{{ $time }}</option>
+                                        @endfor
+                                    @endfor
+                                </select>
                             </div>
                             
                             <div>
@@ -324,19 +477,21 @@
                         <!-- 右列 -->
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">顧客名（漢字）</label>
+                                <label class="block text-sm font-medium text-gray-700">顧客名（カタカナ）<span class="text-red-500">*</span></label>
                                 <input type="text" name="name_kanji" required 
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="例: ヤマダ タロウ">
                             </div>
                             
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">メールアドレス</label>
-                                <input type="email" name="email" required 
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <input type="email" name="email" 
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="例: example@email.com">
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">電話番号</label>
+                                <label class="block text-sm font-medium text-gray-700">電話番号<span class="text-red-500">*</span></label>
                                 <input type="text" name="phone_main" required 
                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                             </div>
@@ -516,7 +671,10 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 今日の日付を基準に初期化
             let currentMonth = new Date();
+            console.log('初期化時のcurrentMonth:', currentMonth);
+            console.log('今日の日付:', new Date().toISOString());
             let selectedCarId = null;
             let selectedCarName = null;
             let selectedCarPrice = null;
@@ -527,6 +685,18 @@
             let endDate = null;
             let startCell = null;
             
+            // ページ読み込み時に今日の日付にスクロール
+            setTimeout(() => {
+                const todayCell = document.querySelector('.today-cell');
+                if (todayCell) {
+                    todayCell.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest', 
+                        inline: 'center' 
+                    });
+                }
+            }, 100);
+            
             // 月表示の更新
             function updateMonthDisplay() {
                 const monthDisplay = document.getElementById('month-display');
@@ -536,10 +706,15 @@
             
             // カレンダーグリッドの更新
             function updateCalendarGrid() {
+                console.log('updateCalendarGrid実行');
+                console.log('年:', currentMonth.getFullYear());
+                console.log('月:', currentMonth.getMonth() + 1);
+                
                 // ページをリロードして新しい月のデータを取得
                 const params = new URLSearchParams(window.location.search);
                 params.set('year', currentMonth.getFullYear());
                 params.set('month', currentMonth.getMonth() + 1);
+                console.log('新しいURL:', window.location.pathname + '?' + params.toString());
                 window.location.search = params.toString();
             }
             
@@ -548,8 +723,8 @@
                 const dateCells = document.querySelectorAll('td[data-date]');
                 
                 dateCells.forEach(cell => {
-                    // 予約があるセルは除外
-                    if (cell.querySelector('.reservation-block')) {
+                    // 予約があるセルまたは過去の日付のセルは除外
+                    if (cell.querySelector('.reservation-block') || cell.classList.contains('past-cell')) {
                         return;
                     }
                     
@@ -559,8 +734,8 @@
                     cell.addEventListener('mousedown', function(e) {
                         e.preventDefault();
                         
-                        // 予約があるセルは除外
-                        if (this.querySelector('.reservation-block')) {
+                        // 予約があるセルまたは過去の日付のセルは除外
+                        if (this.querySelector('.reservation-block') || this.classList.contains('past-cell')) {
                             return;
                         }
                         
@@ -580,8 +755,8 @@
                     cell.addEventListener('mouseenter', function(e) {
                         if (!isDragging || !startCell) return;
                         
-                        // 予約があるセルは除外
-                        if (this.querySelector('.reservation-block')) {
+                        // 予約があるセルまたは過去の日付のセルは除外
+                        if (this.querySelector('.reservation-block') || this.classList.contains('past-cell')) {
                             return;
                         }
                         
@@ -612,9 +787,16 @@
                         selectedCarName = carName;
                         selectedCarPrice = carPrice;
                         
-                        // 日付を設定
-                        document.getElementById('modal-start-date').value = startDate;
-                        document.getElementById('modal-end-date').value = endDate;
+                        // 日付を設定（タイムゾーン問題を回避）
+                        const startDateObj = new Date(startDate + 'T00:00:00');
+                        const endDateObj = new Date(endDate + 'T00:00:00');
+                        
+                        // ローカルタイムゾーンでの日付を取得
+                        const startDateLocal = startDateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD形式
+                        const endDateLocal = endDateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD形式
+                        
+                        document.getElementById('modal-start-date').value = startDateLocal;
+                        document.getElementById('modal-end-date').value = endDateLocal;
                         
                         showReservationModal();
                         
@@ -683,15 +865,22 @@
                     selectedCarName = this.dataset.carName;
                     selectedCarPrice = parseInt(this.dataset.carPrice);
                     
-                    // 今日の日付をデフォルトに設定
+                    // 今日の日付と営業時間内のデフォルト時間を設定
                     const today = new Date();
                     document.getElementById('modal-start-date').value = today.toISOString().split('T')[0];
                     document.getElementById('modal-end-date').value = today.toISOString().split('T')[0];
+                    
+                    // 営業時間内のデフォルト値を設定
+                    const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                    const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "21:00" }}';
+                    document.getElementById('modal-start-time').value = businessStartTime;
+                    document.getElementById('modal-end-time').value = businessEndTime;
                     
                     showReservationModal();
                 });
             });
             
+
             // 日付セルの予約追加ボタンのイベント
             document.querySelectorAll('.add-reservation-day-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
@@ -701,10 +890,19 @@
                     selectedCarName = this.dataset.carName;
                     selectedCarPrice = parseInt(this.dataset.carPrice);
                     
-                    // 選択された日付をデフォルトに設定
+                    // 選択された日付と営業時間内のデフォルト時間を設定（タイムゾーン問題を回避）
                     const selectedDate = this.dataset.date;
-                    document.getElementById('modal-start-date').value = selectedDate;
-                    document.getElementById('modal-end-date').value = selectedDate;
+                    const selectedDateObj = new Date(selectedDate + 'T00:00:00');
+                    const selectedDateLocal = selectedDateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD形式
+                    
+                    document.getElementById('modal-start-date').value = selectedDateLocal;
+                    document.getElementById('modal-end-date').value = selectedDateLocal;
+                    
+                    // 営業時間内のデフォルト値を設定
+                    const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                    const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "21:00" }}';
+                    document.getElementById('modal-start-time').value = businessStartTime;
+                    document.getElementById('modal-end-time').value = businessEndTime;
                     
                     showReservationModal();
                 });
@@ -778,16 +976,65 @@
                         }
                     });
                     
-                    // 日時をISO形式に変換
-                    document.getElementById('start_datetime').value = startDate.toISOString().slice(0, 16);
-                    document.getElementById('end_datetime').value = endDate.toISOString().slice(0, 16);
+                    // 日付と時間を組み合わせてISO形式に変換
+                    const startTime = document.getElementById('modal-start-time').value;
+                    const endTime = document.getElementById('modal-end-time').value;
+                    const startDateTime = startDate.toISOString().split('T')[0] + ' ' + startTime;
+                    const endDateTime = endDate.toISOString().split('T')[0] + ' ' + endTime;
+                    
+                    document.getElementById('start_datetime').value = startDateTime;
+                    document.getElementById('end_datetime').value = endDateTime;
                     document.getElementById('total_price').value = totalPrice;
                 }
             }
             
-            // 日付変更時の料金再計算
+            // 日付・時間変更時の料金再計算
             document.getElementById('modal-start-date').addEventListener('change', updatePriceCalculation);
             document.getElementById('modal-end-date').addEventListener('change', updatePriceCalculation);
+            document.getElementById('modal-start-time').addEventListener('change', updatePriceCalculation);
+            document.getElementById('modal-end-time').addEventListener('change', updatePriceCalculation);
+            
+            // 時間フィールドの営業時間制限
+            document.addEventListener('DOMContentLoaded', function() {
+                const startTimeInput = document.getElementById('modal-start-time');
+                const endTimeInput = document.getElementById('modal-end-time');
+                
+                if (startTimeInput) {
+                    startTimeInput.addEventListener('input', function() {
+                        setupTimeRestrictions();
+                    });
+                    
+                    // 営業時間外の入力を防ぐ
+                    startTimeInput.addEventListener('change', function() {
+                        const value = this.value;
+                        const min = this.min;
+                        const max = this.max;
+                        
+                        if (value < min || value > max) {
+                            alert('営業時間外の時間は選択できません。営業時間: ' + min + ' - ' + max);
+                            this.value = min;
+                        }
+                    });
+                }
+                
+                if (endTimeInput) {
+                    endTimeInput.addEventListener('input', function() {
+                        setupTimeRestrictions();
+                    });
+                    
+                    // 営業時間外の入力を防ぐ
+                    endTimeInput.addEventListener('change', function() {
+                        const value = this.value;
+                        const min = this.min;
+                        const max = this.max;
+                        
+                        if (value < min || value > max) {
+                            alert('営業時間外の時間は選択できません。営業時間: ' + min + ' - ' + max);
+                            this.value = max;
+                        }
+                    });
+                }
+            });
             
             // モーダルを閉じる
             document.getElementById('cancel-btn').addEventListener('click', function() {
@@ -803,19 +1050,26 @@
             
             // ナビゲーションボタン
             document.getElementById('today-btn').addEventListener('click', function() {
+                // 今日の日付に移動
                 currentMonth = new Date();
                 updateMonthDisplay();
                 updateCalendarGrid();
             });
             
             document.getElementById('prev-btn').addEventListener('click', function() {
+                console.log('前月ボタンクリック');
+                console.log('現在の月:', currentMonth);
                 currentMonth.setMonth(currentMonth.getMonth() - 1);
+                console.log('変更後の月:', currentMonth);
                 updateMonthDisplay();
                 updateCalendarGrid();
             });
             
             document.getElementById('next-btn').addEventListener('click', function() {
+                console.log('翌月ボタンクリック');
+                console.log('現在の月:', currentMonth);
                 currentMonth.setMonth(currentMonth.getMonth() + 1);
+                console.log('変更後の月:', currentMonth);
                 updateMonthDisplay();
                 updateCalendarGrid();
             });
@@ -830,7 +1084,7 @@
                 
                 console.log('入力値:', { nameKanji, email, phoneMain });
                 
-                if (!nameKanji || !email || !phoneMain) {
+                if (!nameKanji || !phoneMain) {
                     e.preventDefault();
                     alert('必須項目を入力してください。');
                     return false;
@@ -887,17 +1141,29 @@
                         }
                     });
                     
-                    // 日時をISO形式に変換
-                    document.getElementById('start_datetime').value = startDate.toISOString().slice(0, 16);
-                    document.getElementById('end_datetime').value = endDate.toISOString().slice(0, 16);
+                    // 日付と時間を組み合わせてISO形式に変換
+                    const startTime = document.getElementById('modal-start-time').value;
+                    const endTime = document.getElementById('modal-end-time').value;
+                    const startDateTime = startDate.toISOString().split('T')[0] + ' ' + startTime;
+                    const endDateTime = endDate.toISOString().split('T')[0] + ' ' + endTime;
+                    
+                    document.getElementById('start_datetime').value = startDateTime;
+                    document.getElementById('end_datetime').value = endDateTime;
                     document.getElementById('total_price').value = totalPrice;
+                    
+                    // メールアドレスが空の場合はデフォルト値を設定
+                    const emailInput = document.querySelector('input[name="email"]');
+                    if (emailInput && !emailInput.value.trim()) {
+                        emailInput.value = 'guest@example.com';
+                    }
                     
                     console.log('フォーム送信準備完了');
                     console.log('送信データ:', {
                         car_id: document.getElementById('modal-car-id').value,
                         start_datetime: document.getElementById('start_datetime').value,
                         end_datetime: document.getElementById('end_datetime').value,
-                        total_price: document.getElementById('total_price').value
+                        total_price: document.getElementById('total_price').value,
+                        email: emailInput ? emailInput.value : 'guest@example.com'
                     });
                     
                     // フォーム送信を許可（リロードは削除）
@@ -909,9 +1175,395 @@
                 }
             });
             
+            // 公開・非公開切り替えボタンのイベント
+            document.querySelectorAll('.toggle-visibility-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    
+                    const carId = this.dataset.carId;
+                    const currentStatus = this.dataset.currentStatus;
+                    const newStatus = currentStatus === 'public' ? 'private' : 'public';
+                    
+                    if (confirm('車両の公開状態を変更しますか？')) {
+                        // Ajax request to toggle visibility
+                        fetch(`/admin/cars/${carId}/toggle-publish`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({
+                                status: newStatus
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // ページをリロードして状態を反映
+                                location.reload();
+                            } else {
+                                alert('エラーが発生しました。');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('エラーが発生しました。');
+                        });
+                    }
+                });
+            });
+
             // ドラッグ選択機能を初期化
             initializeDragSelection();
+            
+            // カタカナ入力フィールドでIMEモードを設定
+            document.addEventListener('DOMContentLoaded', function() {
+                const nameInput = document.querySelector('input[name="name_kanji"]');
+                if (nameInput) {
+                    nameInput.addEventListener('focus', function() {
+                        this.style.imeMode = 'active';
+                    });
+                }
+            });
+            
+            // 営業時間の設定
+            const businessHours = @json($businessHours);
+            
+            // 営業時間から時間オプションを生成
+            function generateTimeOptions(startTime, endTime) {
+                const options = [];
+                const start = new Date('2000-01-01T' + startTime);
+                const end = new Date('2000-01-01T' + endTime);
+                
+                while (start <= end) {
+                    const timeString = start.toTimeString().slice(0, 5);
+                    options.push(timeString);
+                    start.setMinutes(start.getMinutes() + 30); // 30分刻み
+                }
+                
+                return options;
+            }
+            
+            // 時間フィールドを営業時間に制限
+            function setupTimeRestrictions() {
+                if (!businessHours) {
+                    console.log('営業時間が設定されていません');
+                    return;
+                }
+                
+                console.log('営業時間:', businessHours);
+                
+                // 営業時間を解析（8:00-20:00形式）
+                const timeMatch = businessHours.match(/(\d{1,2}):(\d{2})[〜\-~]\s*(\d{1,2}):(\d{2})/u);
+                if (!timeMatch) {
+                    console.log('営業時間の形式が正しくありません:', businessHours);
+                    return;
+                }
+                
+                const startHour = parseInt(timeMatch[1]);
+                const startMinute = parseInt(timeMatch[2]);
+                const endHour = parseInt(timeMatch[3]);
+                const endMinute = parseInt(timeMatch[4]);
+                
+                const startTime = startHour.toString().padStart(2, '0') + ':' + startMinute.toString().padStart(2, '0');
+                const endTime = endHour.toString().padStart(2, '0') + ':' + endMinute.toString().padStart(2, '0');
+                
+                console.log('解析結果:', { startTime, endTime });
+                
+                // 開始時間フィールドを設定
+                const startTimeSelect = document.getElementById('modal-start-time');
+                if (startTimeSelect) {
+                    // 営業時間外のオプションを削除
+                    Array.from(startTimeSelect.options).forEach(option => {
+                        const optionTime = option.value;
+                        if (optionTime < startTime || optionTime > endTime) {
+                            option.remove();
+                        }
+                    });
+                    
+                    // 営業時間外の入力を防ぐイベントリスナーを追加
+                    startTimeSelect.addEventListener('change', function() {
+                        const selectedTime = this.value;
+                        if (selectedTime < startTime || selectedTime > endTime) {
+                            alert('営業時間外の時間は選択できません。営業時間: ' + startTime + ' - ' + endTime);
+                            this.value = startTime; // 営業開始時間にリセット
+                        }
+                    });
+                    
+                    console.log('開始時間フィールド設定完了:', startTime);
+                }
+                
+                // 終了時間フィールドを設定
+                const endTimeSelect = document.getElementById('modal-end-time');
+                if (endTimeSelect) {
+                    // 営業時間外のオプションを削除
+                    Array.from(endTimeSelect.options).forEach(option => {
+                        const optionTime = option.value;
+                        if (optionTime < startTime || optionTime > endTime) {
+                            option.remove();
+                        }
+                    });
+                    
+                    // 営業時間外の入力を防ぐイベントリスナーを追加
+                    endTimeSelect.addEventListener('change', function() {
+                        const selectedTime = this.value;
+                        if (selectedTime < startTime || selectedTime > endTime) {
+                            alert('営業時間外の時間は選択できません。営業時間: ' + startTime + ' - ' + endTime);
+                            this.value = endTime; // 営業終了時間にリセット
+                        }
+                    });
+                    
+                    console.log('終了時間フィールド設定完了:', endTime);
+                }
+            }
+            
+            // モーダル表示時にLitepickerと営業時間制限を設定
+            const originalShowReservationModal = window.showReservationModal;
+            window.showReservationModal = function() {
+                originalShowReservationModal();
+                // 少し遅延させてからLitepickerと営業時間制限を設定
+                setTimeout(function() {
+                    setupModalLitepicker();
+                    setupModalTimeRestrictions();
+                }, 200); // 遅延時間を200msに増加
+            };
+
+            // モーダル用Litepickerの初期化
+            function setupModalLitepicker() {
+                const modalStartDateEl = document.getElementById('modal-start-date');
+                const modalEndDateEl = document.getElementById('modal-end-date');
+                const modalStartTimeEl = document.getElementById('modal-start-time');
+                const modalEndTimeEl = document.getElementById('modal-end-time');
+
+                // 既存のLitepickerインスタンスを破棄
+                if (window.modalStartPicker) {
+                    window.modalStartPicker.destroy();
+                }
+                if (window.modalEndPicker) {
+                    window.modalEndPicker.destroy();
+                }
+
+                // 新しいLitepickerインスタンスを作成
+                window.modalStartPicker = new Litepicker({
+                    element: modalStartDateEl,
+                    format: 'YYYY-MM-DD',
+                    minDate: new Date(),
+                    setup: (picker) => {
+                        picker.on('selected', () => updateModalEndConstraints());
+                    }
+                });
+
+                window.modalEndPicker = new Litepicker({
+                    element: modalEndDateEl,
+                    format: 'YYYY-MM-DD',
+                    minDate: new Date(),
+                    setup: (picker) => {
+                        picker.on('selected', () => validateModalEndTime());
+                    }
+                });
+
+                // イベントリスナーを設定
+                [modalStartDateEl, modalStartTimeEl].forEach(el => {
+                    el.addEventListener('change', updateModalEndConstraints);
+                });
+
+                [modalEndDateEl, modalEndTimeEl].forEach(el => {
+                    el.addEventListener('change', validateModalEndTime);
+                });
+            }
+
+            function updateModalEndConstraints() {
+                const modalStartDateEl = document.getElementById('modal-start-date');
+                const modalEndDateEl = document.getElementById('modal-end-date');
+                const startDate = modalStartDateEl.value;
+                if (startDate && window.modalEndPicker) {
+                    window.modalEndPicker.setOptions({ minDate: startDate });
+                }
+                validateModalEndTime();
+            }
+
+            function validateModalEndTime() {
+                const modalStartDateEl = document.getElementById('modal-start-date');
+                const modalStartTimeEl = document.getElementById('modal-start-time');
+                const modalEndDateEl = document.getElementById('modal-end-date');
+                const modalEndTimeEl = document.getElementById('modal-end-time');
+
+                const startDate = modalStartDateEl.value;
+                const startTime = modalStartTimeEl.value;
+                const endDate = modalEndDateEl.value;
+                const endTime = modalEndTimeEl.value;
+
+                if (!startDate || !startTime || !endDate || !endTime) return;
+
+                const start = new Date(`${startDate}T${startTime}`);
+                const end = new Date(`${endDate}T${endTime}`);
+
+                if (end < start) {
+                    alert('終了日時は開始日時より後の時間を選択してください。');
+                    modalEndTimeEl.value = '';
+                    modalEndTimeEl.classList.add('border-red-500');
+                    modalEndTimeEl.title = '開始日時より後の時刻を選んでください';
+                } else {
+                    modalEndTimeEl.classList.remove('border-red-500');
+                    modalEndTimeEl.title = '';
+                }
+            }
+
+            // モーダル用営業時間制限の適用
+            function setupModalTimeRestrictions() {
+                console.log('setupModalTimeRestrictions関数が呼び出されました');
+                
+                const modalStartTimeEl = document.getElementById('modal-start-time');
+                const modalEndTimeEl = document.getElementById('modal-end-time');
+                
+                if (!modalStartTimeEl || !modalEndTimeEl) {
+                    console.log('モーダルの時間要素が見つかりません');
+                    return;
+                }
+                
+                // 営業時間の制限を適用（営業時間外のオプションを削除）
+                const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "21:00" }}';
+                
+                console.log('営業時間制限を適用:', businessStartTime, '-', businessEndTime);
+                console.log('開始時間オプション数（削除前）:', modalStartTimeEl.options.length);
+                console.log('終了時間オプション数（削除前）:', modalEndTimeEl.options.length);
+                
+                // 営業時間の分単位を計算
+                const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                
+                // 利用開始時間の制限（営業時間外のオプションを完全に削除）
+                let removedStartOptions = 0;
+                for (let i = modalStartTimeEl.options.length - 1; i >= 0; i--) {
+                    const option = modalStartTimeEl.options[i];
+                    const optionTime = option.value;
+                    const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                    
+                    // 営業時間外の場合は確実に削除
+                    if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                        modalStartTimeEl.removeChild(option);
+                        removedStartOptions++;
+                        console.log('開始時間から削除:', optionTime);
+                    }
+                }
+                
+                // 利用終了時間の制限（営業時間外のオプションを完全に削除）
+                let removedEndOptions = 0;
+                for (let i = modalEndTimeEl.options.length - 1; i >= 0; i--) {
+                    const option = modalEndTimeEl.options[i];
+                    const optionTime = option.value;
+                    const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                    
+                    // 営業時間外の場合は確実に削除
+                    if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                        modalEndTimeEl.removeChild(option);
+                        removedEndOptions++;
+                        console.log('終了時間から削除:', optionTime);
+                    }
+                }
+                
+                console.log('削除された開始時間オプション:', removedStartOptions);
+                console.log('削除された終了時間オプション:', removedEndOptions);
+                console.log('残りの開始時間オプション数:', modalStartTimeEl.options.length);
+                console.log('残りの終了時間オプション数:', modalEndTimeEl.options.length);
+                
+                // 営業時間内のオプションのみが残っていることを確認
+                if (modalStartTimeEl.options.length > 0) {
+                    console.log('開始時間の最初のオプション:', modalStartTimeEl.options[0].value);
+                    console.log('開始時間の最後のオプション:', modalStartTimeEl.options[modalStartTimeEl.options.length - 1].value);
+                }
+                if (modalEndTimeEl.options.length > 0) {
+                    console.log('終了時間の最初のオプション:', modalEndTimeEl.options[0].value);
+                    console.log('終了時間の最後のオプション:', modalEndTimeEl.options[modalEndTimeEl.options.length - 1].value);
+                }
+                
+                // 営業時間制限が正しく適用されていることを確認
+                console.log('営業時間制限の適用完了');
+            }
         });
     </script>
+    @endpush
+
+    @push('styles')
+    <style>
+        /* カレンダーテーブルの最適化 */
+        #reservation-grid {
+            font-size: 0.8rem;
+        }
+        
+        #reservation-grid th,
+        #reservation-grid td {
+            min-height: 60px;
+            vertical-align: top;
+            padding: 4px 6px;
+        }
+        
+        /* 日付セルのスタイル */
+        .date-cell {
+            width: 120px;
+            min-width: 120px;
+            font-size: 0.75rem;
+        }
+        
+        /* 車両情報セルの最適化 */
+        .sticky-car-info {
+            width: 200px;
+            min-width: 200px;
+        }
+        
+        /* 予約ボタンのサイズ調整 */
+        .reservation-button {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+        }
+        
+        /* 過去の日付のスタイル */
+        .past-cell {
+            background-color: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .past-cell:hover {
+            background-color: #f3f4f6;
+        }
+        
+        /* 車検日のセルスタイル */
+        .inspection-cell {
+            background-color: #fef2f2;
+            border-color: #fecaca;
+        }
+        
+        .inspection-cell:hover {
+            background-color: #fee2e2;
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 1280px) {
+            .date-cell {
+                width: 100px;
+                min-width: 100px;
+            }
+            .sticky-car-info {
+                width: 180px;
+                min-width: 180px;
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .date-cell {
+                width: 80px;
+                min-width: 80px;
+            }
+            .sticky-car-info {
+                width: 160px;
+                min-width: 160px;
+            }
+            #reservation-grid {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
     @endpush
 </x-admin-layout> 

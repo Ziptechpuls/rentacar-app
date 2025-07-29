@@ -37,6 +37,9 @@
             <main>
                 {{ $slot }}
             </main>
+
+            <!-- Footer -->
+            <x-user-footer />
         </div>
         @stack('scripts')
     </body>

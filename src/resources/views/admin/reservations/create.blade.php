@@ -114,19 +114,78 @@
                         <!-- 予約期間 -->
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 mb-4">予約期間</h3>
+                            
+                            <!-- 営業時間情報 -->
+                            @if($parsedBusinessHours)
+                                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p class="text-sm text-blue-800">
+                                        <strong>営業時間:</strong> {{ $parsedBusinessHours['start'] }}〜{{ $parsedBusinessHours['end'] }}
+                                    </p>
+                                </div>
+                            @endif
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <x-input-label for="start_datetime" :value="__('開始日時')" />
-                                    <x-text-input id="start_datetime" class="block mt-1 w-full" type="datetime-local" name="start_datetime" :value="old('start_datetime')" required />
-                                    <x-input-error :messages="$errors->get('start_datetime')" class="mt-2" />
+                                    <x-input-label for="start_date" :value="__('開始日')" />
+                                    <x-text-input 
+                                        id="start_date" 
+                                        class="block mt-1 w-full" 
+                                        type="text" 
+                                        name="start_date" 
+                                        :value="old('start_date', date('Y-m-d'))" 
+                                        required 
+                                    />
+                                    <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                                 </div>
 
                                 <div>
-                                    <x-input-label for="end_datetime" :value="__('終了日時')" />
-                                    <x-text-input id="end_datetime" class="block mt-1 w-full" type="datetime-local" name="end_datetime" :value="old('end_datetime')" required />
-                                    <x-input-error :messages="$errors->get('end_datetime')" class="mt-2" />
+                                    <x-input-label for="end_date" :value="__('終了日')" />
+                                    <x-text-input 
+                                        id="end_date" 
+                                        class="block mt-1 w-full" 
+                                        type="text" 
+                                        name="end_date" 
+                                        :value="old('end_date', date('Y-m-d'))" 
+                                        required 
+                                    />
+                                    <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                                 </div>
                             </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                <div>
+                                    <x-input-label for="start_time" :value="__('開始時間')" />
+                                    <input type="time" id="start_time" name="start_time" 
+                                           value="{{ old('start_time', '08:00') }}"
+                                           min="{{ $parsedBusinessHours['start'] ?? '08:00' }}"
+                                           max="{{ $parsedBusinessHours['end'] ?? '21:00' }}"
+                                           step="300"
+                                           class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" 
+                                           required>
+                                    <x-input-error :messages="$errors->get('start_time')" class="mt-2" />
+                                </div>
+
+                                <div>
+                                    <x-input-label for="end_time" :value="__('終了時間')" />
+                                    <input type="time" id="end_time" name="end_time" 
+                                           value="{{ old('end_time', '21:00') }}"
+                                           min="{{ $parsedBusinessHours['start'] ?? '08:00' }}"
+                                           max="{{ $parsedBusinessHours['end'] ?? '21:00' }}"
+                                           step="300"
+                                           class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" 
+                                           required>
+                                    <x-input-error :messages="$errors->get('end_time')" class="mt-2" />
+                                </div>
+                            </div>
+                            
+                            <!-- 隠しフィールドでdatetime-local形式の値を送信 -->
+                            <input type="hidden" name="start_datetime" id="start_datetime_hidden">
+                            <input type="hidden" name="end_datetime" id="end_datetime_hidden">
+                            
+                            @if($errors->has('business_hours'))
+                                <div class="mt-2">
+                                    <x-input-error :messages="$errors->get('business_hours')" class="mt-2" />
+                                </div>
+                            @endif
                         </div>
 
                         <!-- 利用者数 -->
@@ -227,6 +286,151 @@
     </div>
 
     <script>
+        // 営業時間の設定
+        const businessHours = @json($businessHours);
+        const defaultTimes = @json($defaultTimes);
+        
+        // 営業時間を解析する関数
+        function parseBusinessHours(hours) {
+            if (!hours) return null;
+            
+            // 複数のパターンに対応
+            const patterns = [
+                /(\d{1,2}):(\d{2})[〜\-~]\s*(\d{1,2}):(\d{2})/u,  // 8:00〜21:00
+                /(\d{1,2}):(\d{2})[〜\-~]\s*(\d{1,2}):(\d{2})\s*\(最終送迎(\d{1,2}):(\d{2})\)/u  // 8:00〜21:00 (最終送迎18:00)
+            ];
+            
+            for (const pattern of patterns) {
+                const match = hours.match(pattern);
+                if (match) {
+                    const openHour = parseInt(match[1]);
+                    const openMinute = parseInt(match[2]);
+                    const closeHour = parseInt(match[3]);
+                    const closeMinute = parseInt(match[4]);
+                    
+                    // 最終送迎時間がある場合はそれを使用
+                    let finalPickupHour = closeHour;
+                    let finalPickupMinute = closeMinute;
+                    
+                    if (match[5] && match[6]) {
+                        finalPickupHour = parseInt(match[5]);
+                        finalPickupMinute = parseInt(match[6]);
+                    }
+                    
+                    return {
+                        open: { hour: openHour, minute: openMinute },
+                        close: { hour: closeHour, minute: closeMinute },
+                        finalPickup: { hour: finalPickupHour, minute: finalPickupMinute }
+                    };
+                }
+            }
+            return null;
+        }
+        
+        // 営業時間内かチェックする関数
+        function isWithinBusinessHours(date) {
+            const parsed = parseBusinessHours(businessHours);
+            if (!parsed) return true; // 営業時間が設定されていない場合は制限なし
+            
+            const hour = date.getHours();
+            const minute = date.getMinutes();
+            const timeInMinutes = hour * 60 + minute;
+            const openInMinutes = parsed.open.hour * 60 + parsed.open.minute;
+            const closeInMinutes = parsed.close.hour * 60 + parsed.close.minute;
+            
+            // 開始時間は営業開始時間以降、終了時間は営業終了時間まで
+            return timeInMinutes >= openInMinutes && timeInMinutes <= closeInMinutes;
+        }
+        
+        // 営業時間の詳細を取得する関数
+        function getBusinessHoursInfo() {
+            const parsed = parseBusinessHours(businessHours);
+            if (!parsed) return null;
+            
+            return {
+                open: `${parsed.open.hour.toString().padStart(2, '0')}:${parsed.open.minute.toString().padStart(2, '0')}`,
+                close: `${parsed.close.hour.toString().padStart(2, '0')}:${parsed.close.minute.toString().padStart(2, '0')}`
+            };
+        }
+        
+        // 時間選択の制限を設定
+        function setupTimeRestrictions() {
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            const startTimeInput = document.getElementById('start_time');
+            const endTimeInput = document.getElementById('end_time');
+            const startDatetimeHidden = document.getElementById('start_datetime_hidden');
+            const endDatetimeHidden = document.getElementById('end_datetime_hidden');
+            const businessInfo = getBusinessHoursInfo();
+            
+            if (businessInfo) {
+                // 営業時間の情報を表示
+                console.log('営業時間:', businessInfo);
+            }
+            
+            // 営業時間の制限を適用（営業時間外のオプションを削除）
+            function applyBusinessHoursRestriction() {
+                const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "21:00" }}';
+                
+                // 利用開始時間の制限
+                Array.from(startTimeInput.options).forEach(option => {
+                    const optionTime = option.value;
+                    const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                    const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                    const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                    
+                    if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                        option.remove();
+                    }
+                });
+                
+                // 利用終了時間の制限
+                Array.from(endTimeInput.options).forEach(option => {
+                    const optionTime = option.value;
+                    const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                    const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                    const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                    
+                    if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                        option.remove();
+                    }
+                });
+            }
+            
+            // 営業時間制限を適用
+            applyBusinessHoursRestriction();
+            
+            // 日付と時間が変更されたときに隠しフィールドを更新
+            function updateHiddenFields() {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                const startTime = startTimeInput.value;
+                const endTime = endTimeInput.value;
+                
+                if (startDate && startTime) {
+                    startDatetimeHidden.value = startDate + 'T' + startTime;
+                    console.log('開始日時:', startDatetimeHidden.value);
+                }
+                
+                if (endDate && endTime) {
+                    endDatetimeHidden.value = endDate + 'T' + endTime;
+                    console.log('終了日時:', endDatetimeHidden.value);
+                }
+                
+                calculatePrice();
+            }
+            
+            // 各フィールドの変更を監視
+            startDateInput.addEventListener('change', updateHiddenFields);
+            endDateInput.addEventListener('change', updateHiddenFields);
+            startTimeInput.addEventListener('change', updateHiddenFields);
+            endTimeInput.addEventListener('change', updateHiddenFields);
+            
+            // 初期値を設定
+            updateHiddenFields();
+        }
+        
         // 車両選択時の処理
         document.getElementById('car_id').addEventListener('change', function() {
             const carId = this.value;
@@ -244,8 +448,13 @@
 
         // 料金計算のJavaScript
         function calculatePrice() {
-            const startDate = new Date(document.getElementById('start_datetime').value);
-            const endDate = new Date(document.getElementById('end_datetime').value);
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            const startTimeInput = document.getElementById('start_time');
+            const endTimeInput = document.getElementById('end_time');
+            
+            const startDate = new Date(startDateInput.value + 'T' + startTimeInput.value);
+            const endDate = new Date(endDateInput.value + 'T' + endTimeInput.value);
             const carId = document.getElementById('car_id').value;
             const cars = @json(\App\Models\Car::with('carModel')->get());
             const selectedCar = cars.find(car => car.id == carId);
@@ -266,8 +475,167 @@
             }
         }
 
-        // 日時が変更されたときに料金を再計算
-        document.getElementById('start_datetime').addEventListener('change', calculatePrice);
-        document.getElementById('end_datetime').addEventListener('change', calculatePrice);
+        // ページ読み込み時に初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            const startDateEl = document.getElementById('start_date');
+            const endDateEl = document.getElementById('end_date');
+            const startTimeEl = document.getElementById('start_time');
+            const endTimeEl = document.getElementById('end_time');
+            const startDatetimeHidden = document.getElementById('start_datetime_hidden');
+            const endDatetimeHidden = document.getElementById('end_datetime_hidden');
+
+            // Litepickerの初期化
+            const startPicker = new Litepicker({
+                element: startDateEl,
+                format: 'YYYY-MM-DD',
+                minDate: new Date(),
+                setup: (picker) => {
+                    picker.on('selected', () => updateEndConstraints());
+                }
+            });
+
+            const endPicker = new Litepicker({
+                element: endDateEl,
+                format: 'YYYY-MM-DD',
+                minDate: new Date(),
+                setup: (picker) => {
+                    picker.on('selected', () => validateEndTime());
+                }
+            });
+
+            [startDateEl, startTimeEl].forEach(el => {
+                el.addEventListener('change', updateEndConstraints);
+            });
+
+            [endDateEl, endTimeEl].forEach(el => {
+                el.addEventListener('change', validateEndTime);
+            });
+
+            function updateEndConstraints() {
+                const startDate = startDateEl.value;
+                if (startDate) {
+                    endPicker.setOptions({ minDate: startDate });
+                }
+                validateEndTime();
+            }
+
+            function validateEndTime() {
+                const startDate = startDateEl.value;
+                const startTime = startTimeEl.value;
+                const endDate = endDateEl.value;
+                const endTime = endTimeEl.value;
+
+                if (!startDate || !startTime || !endDate || !endTime) return;
+
+                const start = new Date(`${startDate}T${startTime}`);
+                const end = new Date(`${endDate}T${endTime}`);
+
+                if (end < start) {
+                    alert('終了日時は開始日時より後の時間を選択してください。');
+                    endTimeEl.value = '';
+                    endTimeEl.classList.add('border-red-500');
+                    endTimeEl.title = '開始日時より後の時刻を選んでください';
+                } else {
+                    endTimeEl.classList.remove('border-red-500');
+                    endTimeEl.title = '';
+                }
+            }
+
+            // 営業時間の制限を適用（営業時間外のオプションを削除）
+            function applyBusinessHoursRestriction() {
+                const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "21:00" }}';
+                
+                // 利用開始時間の制限
+                Array.from(startTimeEl.options).forEach(option => {
+                    const optionTime = option.value;
+                    const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                    const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                    const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                    
+                    if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                        option.remove();
+                    }
+                });
+                
+                // 利用終了時間の制限
+                Array.from(endTimeEl.options).forEach(option => {
+                    const optionTime = option.value;
+                    const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                    const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                    const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                    
+                    if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                        option.remove();
+                    }
+                });
+            }
+
+            // HTML5 time input用の営業時間制限
+            function setupTimeRestrictions() {
+                const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "21:00" }}';
+                
+                // 時間入力の制限を設定
+                startTimeEl.min = businessStartTime;
+                startTimeEl.max = businessEndTime;
+                endTimeEl.min = businessStartTime;
+                endTimeEl.max = businessEndTime;
+                
+                // 時間が変更されたときのバリデーション
+                startTimeEl.addEventListener('change', function() {
+                    const selectedTime = this.value;
+                    if (selectedTime < businessStartTime || selectedTime > businessEndTime) {
+                        alert('営業時間内の時間を選択してください。');
+                        this.value = businessStartTime;
+                    }
+                    updateHiddenFields();
+                    validateEndTime();
+                });
+                
+                endTimeEl.addEventListener('change', function() {
+                    const selectedTime = this.value;
+                    if (selectedTime < businessStartTime || selectedTime > businessEndTime) {
+                        alert('営業時間内の時間を選択してください。');
+                        this.value = businessEndTime;
+                    }
+                    updateHiddenFields();
+                    validateEndTime();
+                });
+            }
+
+            // 日付と時間が変更されたときに隠しフィールドを更新
+            function updateHiddenFields() {
+                const startDate = startDateEl.value;
+                const endDate = endDateEl.value;
+                const startTime = startTimeEl.value;
+                const endTime = endTimeEl.value;
+                
+                if (startDate && startTime) {
+                    startDatetimeHidden.value = startDate + 'T' + startTime;
+                }
+                
+                if (endDate && endTime) {
+                    endDatetimeHidden.value = endDate + 'T' + endTime;
+                }
+            }
+            
+            // 各フィールドの変更を監視
+            startDateEl.addEventListener('change', updateHiddenFields);
+            endDateEl.addEventListener('change', updateHiddenFields);
+            startTimeEl.addEventListener('change', updateHiddenFields);
+            endTimeEl.addEventListener('change', updateHiddenFields);
+            
+            // 初期化
+            applyBusinessHoursRestriction();
+            setupTimeRestrictions(); // 時間制限の初期化を追加
+            updateHiddenFields();
+            
+            // 日時が変更されたときに料金を再計算
+            document.getElementById('start_date').addEventListener('change', calculatePrice);
+            document.getElementById('end_date').addEventListener('change', calculatePrice);
+            document.getElementById('start_time').addEventListener('change', calculatePrice);
+            document.getElementById('end_time').addEventListener('change', calculatePrice);
+        });
     </script>
 </x-admin-layout> 

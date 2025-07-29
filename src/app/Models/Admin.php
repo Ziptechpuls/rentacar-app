@@ -20,6 +20,7 @@ class Admin extends Authenticatable
         'email',
         'password',
         'last_login_at',
+        'company_id',
     ];
 
     /**
@@ -30,6 +31,11 @@ class Admin extends Authenticatable
     protected $casts = [
         'last_login_at' => 'datetime',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     // 必要に応じて、他のプロパティやメソッド（$hidden, $castsなど）も定義してください。
 }

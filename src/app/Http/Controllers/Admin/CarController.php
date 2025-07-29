@@ -85,6 +85,7 @@ class CarController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:50', // 例: 軽自動車, セダンなど
             'color' => 'nullable|string|max:50',
+            'inspection_date' => 'nullable|date',
             'capacity' => 'required|integer|min:1',
             'price' => 'required|numeric|min:0',
             'transmission' => 'required|string|in:AT,MT',
@@ -99,28 +100,31 @@ class CarController extends Controller
             'is_public' => 'required|boolean',
             'car_model_id' => 'nullable|exists:car_models,id', // もしCarModelを使用する場合
             'license_plate' => 'nullable|string|unique:cars,license_plate', // もしナンバープレートを登録する場合
-            'store_id' => 'nullable|integer|exists:stores,id', // もし店舗情報と紐付ける場合        ]);
+            'store_id' => 'nullable|integer|exists:stores,id', // もし店舗情報と紐付ける場合        
         ]);
     
-            // チェックボックスの値をbooleanに変換
-            $validated['has_bluetooth'] = $request->boolean('has_bluetooth');
-            $validated['has_back_monitor'] = $request->boolean('has_back_monitor');
-            $validated['has_navigation'] = $request->boolean('has_navigation');
-            $validated['has_etc'] = $request->boolean('has_etc');
+        // チェックボックスの値をbooleanに変換
+        $validated['has_bluetooth'] = $request->boolean('has_bluetooth');
+        $validated['has_back_monitor'] = $request->boolean('has_back_monitor');
+        $validated['has_navigation'] = $request->boolean('has_navigation');
+        $validated['has_etc'] = $request->boolean('has_etc');
 
-            // 画像以外のデータを先に保存
-            $carData = collect($validated)->except('images')->toArray();
-            $car = Car::create($carData);
+        // ログイン中の管理者の会社IDを設定
+        $validated['company_id'] = auth('admin')->user()->company_id;
 
-            // 画像アップロード処理
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $imageFile) {
-                    // ファイル名にタイムスタンプを付加してユニークにするなどの工夫も可能
-                    $path = $imageFile->store('cars', 'public'); // storage/app/public/cars ディレクトリに保存
-                    $car->images()->create(['image_path' => $path]);
-                }
-            }    
-            return redirect()->route('admin.cars.index')->with('success', '車両を登録しました');
+        // 画像以外のデータを先に保存
+        $carData = collect($validated)->except('images')->toArray();
+        $car = Car::create($carData);
+
+        // 画像アップロード処理
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $imageFile) {
+                // ファイル名にタイムスタンプを付加してユニークにするなどの工夫も可能
+                $path = $imageFile->store('cars', 'public'); // storage/app/public/cars ディレクトリに保存
+                $car->images()->create(['image_path' => $path]);
+            }
+        }    
+        return redirect()->route('admin.cars.index')->with('success', '車両を登録しました');
     }
 
     // 車両の編集画面を表示
@@ -156,7 +160,8 @@ class CarController extends Controller
             'is_public' => 'required|boolean',
             'car_model_id' => 'nullable|exists:car_models,id',
             'license_plate' => 'nullable|string|max:255',
-            'vin_number' => 'nullable|string|max:255',            
+            'vin_number' => 'nullable|string|max:255',
+            'inspection_date' => 'nullable|date',
             'store_id' => 'nullable|integer|exists:stores,id',        
         ]);
 
@@ -178,7 +183,7 @@ class CarController extends Controller
             // $car->images()->delete(); // 例: 全削除する場合
             foreach ($request->file('images') as $imageFile) {
                 $path = $imageFile->store('cars', 'public');
-                $car->images()->create(['path' => $path]);
+                $car->images()->create(['image_path' => $path]);
             }
         }
         return redirect()->route('admin.cars.index')->with('success', '車両情報を更新しました');
@@ -190,8 +195,8 @@ class CarController extends Controller
         // 関連する画像をストレージから削除し、DBからも削除
         foreach ($car->images as $image) {
             // Storageファサードを使用するために use Illuminate\Support\Facades\Storage; を追加
-            if (Storage::disk('public')->exists($image->path)) {
-                Storage::disk('public')->delete($image->path);
+            if (Storage::disk('public')->exists($image->image_path)) {
+                Storage::disk('public')->delete($image->image_path);
             }
             $image->delete();
         }
@@ -200,5 +205,18 @@ class CarController extends Controller
         $car->delete();
 
         return redirect()->route('admin.cars.index')->with('success', '車両を削除しました');
+    }
+
+    // 車両の公開・非公開を切り替える
+    public function togglePublish(Car $car)
+    {
+        $car->is_public = !$car->is_public;
+        $car->save();
+
+        return response()->json([
+            'success' => true,
+            'status' => $car->is_public ? 'public' : 'private',
+            'message' => $car->is_public ? '車両を公開しました' : '車両を非公開にしました'
+        ]);
     }
 }

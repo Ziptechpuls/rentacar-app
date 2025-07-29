@@ -38,23 +38,38 @@
                 <hr class="my-4">
 
                 <div>
-                    <strong>車両料金：</strong> ¥{{ number_format($car->price) }} × {{ $days }}日 = ¥{{ number_format($carPrice) }}
+                    <strong>車両料金：</strong>
+                    <div class="mt-2 ml-4">
+                        <div>¥{{ number_format($car->price) }} × {{ $days }}日</div>
+                        <div class="text-right font-semibold mt-1">
+                            車両合計：¥{{ number_format($carPrice) }}
+                        </div>
+                    </div>
                 </div>
 
-                @if (!empty($selectedOptionsDisplayArray))
-                <div class="mt-4">
+                @if (!empty($selectedOptionsDisplay))
+                    <div class="mt-4">
                         <strong>選択オプション：</strong>
                         <ul class="list-disc list-inside mt-2 space-y-1 text-sm">
-                            @foreach ($selectedOptionsDisplayArray as $opt)
+                            @foreach ($selectedOptionsDisplay as $opt)
                                 <li>
                                     {{ $opt['name'] }}：¥{{ number_format($opt['unit_price']) }}
                                     @if ($opt['quantity'] > 1)
                                         × {{ $opt['quantity'] }}個
                                     @endif
-                                    × {{ $days }}日 = <strong>¥{{ number_format($opt['price']) }}</strong>
+                                    @if ($opt['price_type'] === 'per_day')
+                                        × {{ $days }}日
+                                    @endif
+                                    = <strong>¥{{ number_format($opt['price']) }}</strong>
+                                    <span class="text-sm text-gray-500">
+                                        ({{ $opt['price_type'] === 'per_piece' ? '1個あたり' : '1日あたり' }})
+                                    </span>
                                 </li>
                             @endforeach
                         </ul>
+                        <div class="mt-2 text-right font-semibold">
+                            オプション合計：¥{{ number_format($optionTotal) }}
+                        </div>
                     </div>
                 @else
                     <div class="mt-4">
@@ -64,8 +79,21 @@
 
                 <hr class="my-4">
 
-                <div class="text-lg font-bold">
-                    合計金額（税込）：¥{{ number_format($total) }}
+                <div class="text-lg">
+                    <div class="flex justify-between items-center">
+                        <span>車両料金：</span>
+                        <span>¥{{ number_format($carPrice) }}</span>
+                    </div>
+                    @if (!empty($selectedOptionsDisplay))
+                        <div class="flex justify-between items-center mt-2">
+                            <span>オプション料金：</span>
+                            <span>¥{{ number_format($optionTotal) }}</span>
+                        </div>
+                    @endif
+                    <div class="flex justify-between items-center mt-4 font-bold text-xl">
+                        <span>合計金額（税込）：</span>
+                        <span>¥{{ number_format($total) }}</span>
+                    </div>
                 </div>
             </div>
 

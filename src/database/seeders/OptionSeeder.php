@@ -2,68 +2,60 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Option;
+use Illuminate\Database\Seeder;
 
 class OptionSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $options = [
             [
                 'name' => 'チャイルドシート',
-                'price' => 2000,
+                'description' => '6歳未満のお子様用のチャイルドシートです。',
+                'price' => 1000,
                 'is_quantity' => true,
-                'description' => '小さなお子様向けのチャイルドシートです。',
-                'image_path' => 'options/childseat.jpg',
+                'price_type' => 'per_piece',
             ],
             [
                 'name' => 'ジュニアシート',
-                'price' => 1500,
+                'description' => '6歳以上のお子様用のジュニアシートです。',
+                'price' => 800,
                 'is_quantity' => true,
-                'description' => '体重15〜36kgのお子様向けのジュニアシートです。',
-                'image_path' => 'options/juniorseat.jpg',
+                'price_type' => 'per_piece',
             ],
             [
-                'name' => 'ベビーカー',
-                'price' => 3000,
-                'is_quantity' => true,
-                'description' => '折りたたみ式のベビーカーです。',
-                'image_path' => 'options/stroller.jpg',
-            ],
-            [
-                'name' => '車両保険',
-                'price' => 3000,
+                'name' => 'スキーキャリア',
+                'description' => 'スキー・スノーボードを運搬できるキャリアです。',
+                'price' => 2000,
                 'is_quantity' => false,
-                'description' => '事故時の修理費用を補償します。',
-                'image_path' => null,
+                'price_type' => 'per_day',
             ],
             [
-                'name' => '免責補償',
-                'price' => 2500,
+                'name' => 'サーフボードキャリア',
+                'description' => 'サーフボードを運搬できるキャリアです。',
+                'price' => 2000,
                 'is_quantity' => false,
-                'description' => '自己負担金（免責額）を補償します。',
-                'image_path' => null,
+                'price_type' => 'per_day',
             ],
             [
-                'name' => 'NOC補償',
+                'name' => '4G Wi-Fiルーター',
+                'description' => '車内で使用できる4G Wi-Fiルーターです。',
+                'price' => 500,
+                'is_quantity' => false,
+                'price_type' => 'per_day',
+            ],
+            [
+                'name' => 'ドライブレコーダー',
+                'description' => '前後カメラ搭載の高性能ドライブレコーダーです。',
                 'price' => 1000,
                 'is_quantity' => false,
-                'description' => '休業補償（NOC）をカバーします。',
-                'image_path' => null,
+                'price_type' => 'per_day',
             ],
         ];
 
         foreach ($options as $option) {
-            Option::updateOrCreate(
-                ['name' => $option['name']], // 一意性はnameで判定
-                [
-                    'price' => $option['price'],
-                    'is_quantity' => $option['is_quantity'],
-                    'description' => $option['description'] ?? null,
-                    'image_path' => $option['image_path'] ?? null,
-                ]
-            );
+            Option::create($option);
         }
     }
 }

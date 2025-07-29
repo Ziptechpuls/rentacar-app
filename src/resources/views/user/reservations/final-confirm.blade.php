@@ -25,7 +25,7 @@
                 <div><strong>期間：</strong>{{ $isSameDay ? '日帰り' : "{$nights}泊{$days}日" }}</div>
                 <div><strong>車両料金：</strong>¥{{ number_format($car->price) }} × {{ $days }}日 = ¥{{ number_format($carPrice) }}</div>
 
-                @if (count($selectedOptionsDisplay))
+                @if (!empty($selectedOptionsDisplay))
                     <div><strong>オプション：</strong></div>
                     <ul class="ml-4 list-disc">
                         @foreach ($selectedOptionsDisplay as $opt)
@@ -61,7 +61,20 @@
             </div>
 
             {{-- ▼ 送信フォーム (予約保存処理へ) --}}
-            <form action="{{ route('user.cars.reservations.reserved', ['car' => $car->id]) }}" method="POST">
+            
+            {{-- エラーメッセージ表示 --}}
+            @if ($errors->any())
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <h4 class="font-bold">エラーが発生しました：</h4>
+                    <ul class="list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+            
+            <form action="{{ route('user.cars.reservations.reserved', ['car' => $car]) }}" method="POST">
                 @csrf
 
                 {{-- hidden fields --}}

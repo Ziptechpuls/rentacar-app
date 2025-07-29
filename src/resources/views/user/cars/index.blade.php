@@ -23,11 +23,32 @@
                         <div class="mb-4 flex flex-wrap gap-4">
                             <div class="flex-1 min-w-[150px]">
                                 <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">利用開始日</label>
-                                <input type="text" id="start_date" name="start_date" class="border rounded p-2 w-full" value="{{ request('start_date') }}">
+                                <input type="text" id="start_date" name="start_date" class="border rounded p-2 w-full" value="{{ request('start_date', \Carbon\Carbon::today()->format('Y-m-d')) }}">
                             </div>
                             <div class="flex-1 min-w-[100px]">
                                 <label for="start_time" class="block text-sm font-medium text-gray-700 mb-1">利用開始時間</label>
-                                <input type="time" step="60" id="start_time" name="start_time" class="border rounded p-2 w-full" value="{{ request('start_time') }}">
+                                <select id="start_time" name="start_time" class="border rounded p-2 w-full">
+                                                                                @for ($hour = 0; $hour < 24; $hour++)
+                                                @for ($minute = 0; $minute < 60; $minute += 5)
+                                                    @php
+                                                        $time = sprintf('%02d:%02d', $hour, $minute);
+                                                        $selected = request('start_time', $defaultStartTime ?? '09:00') == $time ? 'selected' : '';
+                                                        
+                                                        // 営業時間外かどうかをチェック
+                                                        $isOutsideBusinessHours = false;
+                                                        if ($parsedBusinessHours) {
+                                                            $timeMinutes = $hour * 60 + $minute;
+                                                            $startMinutes = (int)substr($parsedBusinessHours['start'], 0, 2) * 60 + (int)substr($parsedBusinessHours['start'], 3, 2);
+                                                            $endMinutes = (int)substr($parsedBusinessHours['end'], 0, 2) * 60 + (int)substr($parsedBusinessHours['end'], 3, 2);
+                                                            $isOutsideBusinessHours = $timeMinutes < $startMinutes || $timeMinutes > $endMinutes;
+                                                        }
+                                                    @endphp
+                                                    @if (!$isOutsideBusinessHours)
+                                                        <option value="{{ $time }}" {{ $selected }}>{{ $time }}</option>
+                                                    @endif
+                                                @endfor
+                                            @endfor
+                                </select>
                             </div>
                         </div>
 
@@ -37,11 +58,32 @@
                         <div class="mb-4 flex flex-wrap gap-4">
                             <div class="flex-1 min-w-[150px]">
                                 <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">利用終了日</label>
-                                <input type="text" id="end_date" name="end_date" class="border rounded p-2 w-full" value="{{ request('end_date') }}">
+                                <input type="text" id="end_date" name="end_date" class="border rounded p-2 w-full" value="{{ request('end_date', \Carbon\Carbon::today()->format('Y-m-d')) }}">
                             </div>
                             <div class="flex-1 min-w-[100px]">
                                 <label for="end_time" class="block text-sm font-medium text-gray-700 mb-1">利用終了時間</label>
-                                <input type="time" step="60" id="end_time" name="end_time" class="border rounded p-2 w-full" value="{{ request('end_time') }}">
+                                <select id="end_time" name="end_time" class="border rounded p-2 w-full">
+                                                                                @for ($hour = 0; $hour < 24; $hour++)
+                                                @for ($minute = 0; $minute < 60; $minute += 5)
+                                                    @php
+                                                        $time = sprintf('%02d:%02d', $hour, $minute);
+                                                        $selected = request('end_time', $defaultEndTime ?? '18:00') == $time ? 'selected' : '';
+                                                        
+                                                        // 営業時間外かどうかをチェック
+                                                        $isOutsideBusinessHours = false;
+                                                        if ($parsedBusinessHours) {
+                                                            $timeMinutes = $hour * 60 + $minute;
+                                                            $startMinutes = (int)substr($parsedBusinessHours['start'], 0, 2) * 60 + (int)substr($parsedBusinessHours['start'], 3, 2);
+                                                            $endMinutes = (int)substr($parsedBusinessHours['end'], 0, 2) * 60 + (int)substr($parsedBusinessHours['end'], 3, 2);
+                                                            $isOutsideBusinessHours = $timeMinutes < $startMinutes || $timeMinutes > $endMinutes;
+                                                        }
+                                                    @endphp
+                                                    @if (!$isOutsideBusinessHours)
+                                                        <option value="{{ $time }}" {{ $selected }}>{{ $time }}</option>
+                                                    @endif
+                                                @endfor
+                                            @endfor
+                                </select>
                             </div>
                         </div>
 
@@ -89,36 +131,43 @@
                             @foreach ($cars as $car)
                                 <div class="border rounded-lg p-4 shadow-sm flex gap-4 w-full mb-4">
                                     {{-- 画像ギャラリー --}}
-                                    <div x-data="{ selected: '{{ $car->images->first()?->filepath ?? '' }}' }">
+                                    <div x-data="{ selected: '{{ $car->images->first()?->image_path ?? '' }}' }" class="w-1/3">
                                         @php $images = $car->images; @endphp
 
                                         @if ($images->isNotEmpty())
                                             <div class="w-full aspect-video mb-2 overflow-hidden rounded shadow">
                                                 <img
-                                                    :src="'{{ asset('storage') }}/' + selected"
+                                                    :src="selected.startsWith('http') ? selected : '{{ asset('storage') }}/' + selected"
                                                     class="w-full h-full object-cover transition duration-300 ease-in-out transform hover:scale-105"
                                                 >
                                             </div>
 
-                                            <div class="flex flex-wrap gap-2">
-                                                @foreach ($images as $image)
-                                                    <div
-                                                        class="w-20 h-16 overflow-hidden rounded border cursor-pointer hover:opacity-80"
-                                                        :class="{ 'ring-2 ring-blue-500': selected === '{{ $image->filepath }}' }"
-                                                        @click="selected = '{{ $image->filepath }}'"
-                                                    >
-                                                        <img src="{{ asset('storage/' . $image->filepath) }}" alt="サブ画像" class="w-full h-full object-cover">
-                                                    </div>
-                                                @endforeach
+                                            <div class="flex gap-1 w-full">
+                                                @for ($i = 1; $i < 5; $i++)
+                                                    @if ($i < $images->count())
+                                                        @php $image = $images[$i]; @endphp
+                                                        <div
+                                                            class="flex-1 min-w-0 h-16 overflow-hidden rounded border cursor-pointer hover:opacity-80"
+                                                            :class="{ 'ring-2 ring-blue-500': selected === '{{ $image->image_path }}' }"
+                                                            @click="selected = '{{ $image->image_path }}'"
+                                                        >
+                                                            <img src="{{ str_starts_with($image->image_path, 'http') ? $image->image_path : asset('storage/' . $image->image_path) }}" alt="サブ画像" class="w-full h-full object-cover">
+                                                        </div>
+                                                    @else
+                                                        <div class="flex-1 min-w-0 h-16 bg-gray-100 border border-dashed border-gray-300 rounded flex items-center justify-center text-xs text-gray-400">
+                                                            -
+                                                        </div>
+                                                    @endif
+                                                @endfor
                                             </div>
                                         @else
                                             <div class="w-full aspect-video bg-gray-200 flex items-center justify-center text-sm text-gray-500 rounded mb-2">
                                                 No Image
                                             </div>
-                                            <div class="flex gap-2">
+                                            <div class="flex gap-1 w-full">
                                                 @for ($i = 0; $i < 4; $i++)
-                                                    <div class="w-16 h-12 bg-gray-100 border flex items-center justify-center text-xs text-gray-400 rounded">
-                                                        No Image
+                                                    <div class="flex-1 min-w-0 h-16 bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 rounded">
+                                                        -
                                                     </div>
                                                 @endfor
                                             </div>
@@ -126,7 +175,7 @@
                                     </div>
 
                                     {{-- 車両情報 --}}
-                                    <div class="flex-1 min-w-0 flex flex-col justify-between">
+                                    <div class="w-2/3 flex flex-col justify-between">
                                         <div class="text-lg font-semibold">{{ $car->name }}</div>
                                         <div class="text-sm text-gray-600 mb-1">{{ $car->type }} / {{ $car->capacity }}人乗り</div>
 
@@ -164,7 +213,11 @@
                                                 'end_datetime' => request('end_date') && request('end_time') ? request('end_date') . ' ' . request('end_time') : null,
                                             ]) }}"
                                                class="inline-block bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-2 rounded"
-                                               onclick="if (!'{{ request('start_date') }}' || !'{{ request('start_time') }}' || !'{{ request('end_date') }}' || !'{{ request('end_time') }}') { alert('利用日時をすべて指定して検索してください。'); return false; }">
+                                               data-start-date="{{ request('start_date') }}"
+                                               data-start-time="{{ request('start_time') }}"
+                                               data-end-date="{{ request('end_date') }}"
+                                               data-end-time="{{ request('end_time') }}"
+                                               onclick="return checkDateTime(this)">
                                                 詳細を見る
                                             </a>
                                         </div>
@@ -190,6 +243,20 @@
 
     {{-- Litepicker --}}
     @push('scripts')
+        <script>
+            function checkDateTime(element) {
+                const startDate = element.dataset.startDate;
+                const startTime = element.dataset.startTime;
+                const endDate = element.dataset.endDate;
+                const endTime = element.dataset.endTime;
+                
+                if (!startDate || !startTime || !endDate || !endTime) {
+                    alert('利用日時をすべて指定して検索してください。');
+                    return false;
+                }
+                return true;
+            }
+        </script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const startDateEl = document.getElementById('start_date');
@@ -253,7 +320,40 @@
                     }
                 }
 
+                // 営業時間の制限を適用（営業時間外のオプションを削除）
+                function applyBusinessHoursRestriction() {
+                    const businessStartTime = '{{ $parsedBusinessHours["start"] ?? "08:00" }}';
+                    const businessEndTime = '{{ $parsedBusinessHours["end"] ?? "20:00" }}';
+                    
+                    // 利用開始時間の制限
+                    Array.from(startTimeEl.options).forEach(option => {
+                        const optionTime = option.value;
+                        const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                        const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                        const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                        
+                        if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                            option.remove();
+                        }
+                    });
+                    
+                    // 利用終了時間の制限
+                    Array.from(endTimeEl.options).forEach(option => {
+                        const optionTime = option.value;
+                        const optionMinutes = parseInt(optionTime.split(':')[0]) * 60 + parseInt(optionTime.split(':')[1]);
+                        const businessStartMinutes = parseInt(businessStartTime.split(':')[0]) * 60 + parseInt(businessStartTime.split(':')[1]);
+                        const businessEndMinutes = parseInt(businessEndTime.split(':')[0]) * 60 + parseInt(businessEndTime.split(':')[1]);
+                        
+                        if (optionMinutes < businessStartMinutes || optionMinutes > businessEndMinutes) {
+                            option.remove();
+                        }
+                    });
+                }
+
+
+
                 updateEndConstraints();
+                applyBusinessHoursRestriction();
             });
         </script>
     @endpush

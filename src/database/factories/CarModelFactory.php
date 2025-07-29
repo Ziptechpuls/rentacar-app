@@ -11,8 +11,11 @@ class CarModelFactory extends Factory
 
     public function definition()
     {
+        $grades = ['コンパクト', 'ミドル', 'ラグジュアリー'];
         return [
-            'car_model' => $this->faker->unique()->word(), // 車種名を適当に作る例
+            'name' => $this->faker->randomElement(['フィット', 'ノート', 'アクア', 'プリウス', 'カローラ', 'ヴィッツ', 'デミオ', 'マーチ']),
+            'grade' => $this->faker->randomElement($grades),
+            'description' => $this->faker->paragraph(),
         ];
     }
 }

@@ -21,7 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'phone_number',
+        'last_login_at',
     ];
 
     /**
@@ -44,27 +44,26 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'last_login_at' => 'datetime',
         ];
     }
 
     /**
-     * 電話番号のアクセサ（phoneフィールドとの互換性のため）
+     * 電話番号のアクセサ（最新の予約から取得）
      */
     public function getPhoneAttribute()
     {
-        return $this->phone_number;
-    }
-
-    /**
-     * 電話番号のミューテータ（phoneフィールドとの互換性のため）
-     */
-    public function setPhoneAttribute($value)
-    {
-        $this->phone_number = $value;
+        $latestReservation = $this->reservations()->latest()->first();
+        return $latestReservation ? $latestReservation->phone_main : null;
     }
 
     public function reservations()
     {
         return $this->hasMany(Reservation::class);
+    }
+
+    public function updateLastLoginAt()
+    {
+        $this->update(['last_login_at' => now()]);
     }
 }

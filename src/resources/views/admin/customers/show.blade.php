@@ -158,9 +158,14 @@
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('admin.reservations.show', $reservation) }}" class="text-indigo-600 hover:text-indigo-900">
-                                                    詳細
-                                                </a>
+                                                <div class="flex space-x-2">
+                                                    <a href="{{ route('admin.reservations.show', $reservation) }}" class="text-indigo-600 hover:text-indigo-900">
+                                                        詳細
+                                                    </a>
+                                                    <a href="{{ route('admin.reservations.edit', $reservation) }}" class="text-green-600 hover:text-green-900">
+                                                        編集
+                                                    </a>
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -252,9 +257,14 @@
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('admin.reservations.show', $reservation) }}" class="text-indigo-600 hover:text-indigo-900">
-                                                    詳細
-                                                </a>
+                                                <div class="flex space-x-2">
+                                                    <a href="{{ route('admin.reservations.show', $reservation) }}" class="text-indigo-600 hover:text-indigo-900">
+                                                        詳細
+                                                    </a>
+                                                    <a href="{{ route('admin.reservations.edit', $reservation) }}" class="text-green-600 hover:text-green-900">
+                                                        編集
+                                                    </a>
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach

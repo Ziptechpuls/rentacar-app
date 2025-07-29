@@ -105,6 +105,16 @@
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300"
                                         placeholder="例: ホワイト, ブラック など" />
                                 </div>
+
+                                <!-- 車検日 -->
+                                <div>
+                                    <label for="inspection_date" class="block text-sm font-medium text-gray-700">車検日</label>
+                                    <input id="inspection_date" name="inspection_date" type="date" value="{{ old('inspection_date') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300" />
+                                    <p class="mt-1 text-xs text-gray-500">車検最終日を入力してください。予約管理で車検マークが表示されます。</p>
+                                </div>
+
+
                             </div>
 
                             <!-- 右カラム -->
@@ -140,7 +150,8 @@
                                 <div>
                                     <label for="description" class="block text-sm font-medium text-gray-700">車両説明</label>
                                     <textarea id="description" name="description" rows="6"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300">{{ old('description') }}</textarea>
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300"
+                                        placeholder="例: 低燃費で運転しやすい車です。ファミリーにおすすめ！車両のPR文を書こう">{{ old('description') }}</textarea>
                                 </div>
 
                                 <!-- 車両画像 -->
@@ -176,7 +187,7 @@
                                         class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                                         登録する
                                     </button>
-                                    <a href="{{ route('admin.cars.index') }}" class="text-sm text-gray-600 hover:text-gray-900 mx-4 py-2">キャンセル</a>
+                                    <a href="{{ route('admin.cars.index') }}" class="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">キャンセル</a>
                                 </div>
                             </div>
                         </div>
@@ -196,7 +207,7 @@
                                 @if($car->images->isNotEmpty())
                                     <div class="flex flex-col gap-2 w-40 flex-shrink-0">
                                         @foreach($car->images->take(3) as $image)
-                                            <img src="{{ asset('storage/' . $image->path) }}" alt="{{ $car->name }}" class="rounded border object-cover w-full h-24" />
+                                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="{{ $car->name }}" class="rounded border object-cover w-full h-24" />
                                         @endforeach
                                     </div>
                                 @else

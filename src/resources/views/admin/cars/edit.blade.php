@@ -98,6 +98,14 @@
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300"
                                         placeholder="例: ホワイト, ブラック など" />
                                 </div>
+
+                                <!-- 車検日 -->
+                                <div>
+                                    <label for="inspection_date" class="block text-sm font-medium text-gray-700">車検日</label>
+                                    <input id="inspection_date" name="inspection_date" type="date" value="{{ old('inspection_date', $car->inspection_date ? $car->inspection_date->format('Y-m-d') : '') }}"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300" />
+                                    <p class="mt-1 text-xs text-gray-500">車検最終日を入力してください。予約管理で車検マークが表示されます。</p>
+                                </div>
                             </div>
 
                             <!-- 右カラム -->
@@ -131,7 +139,8 @@
                                 <div>
                                     <label for="description" class="block text-sm font-medium text-gray-700">車両説明</label>
                                     <textarea id="description" name="description" rows="6"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300">{{ old('description', $car->description) }}</textarea>
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300"
+                                        placeholder="例: 低燃費で運転しやすい車です。ファミリーにおすすめ！車両のPR文を書こう">{{ old('description', $car->description) }}</textarea>
                                 </div>
 
                                 <!-- 既存画像表示 -->
@@ -140,7 +149,7 @@
                                     <div class="flex flex-wrap gap-4">
                                         @forelse ($car->images as $image)
                                             <div class="relative w-24 h-24 border rounded overflow-hidden bg-gray-100">
-                                                <img src="{{ asset('storage/' . $image->path) }}" alt="車両画像" class="object-cover w-full h-full" />
+                                                <img src="{{ str_starts_with($image->image_path, 'http') ? $image->image_path : asset('storage/' . $image->image_path) }}" alt="車両画像" class="object-cover w-full h-full" />
                                             </div>
                                         @empty
                                             <p class="text-sm text-gray-500">画像が登録されていません。</p>
@@ -189,7 +198,7 @@
                     </form>
 
                     <div class="mt-8 text-center">
-                        <a href="{{ route('admin.cars.index') }}" class="text-indigo-600 hover:text-indigo-900">一覧に戻る</a>
+                        <a href="{{ route('admin.cars.index') }}" class="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">一覧に戻る</a>
                     </div>
 
                 </div>

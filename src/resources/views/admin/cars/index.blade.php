@@ -50,7 +50,7 @@
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         @if($car->images && $car->images->isNotEmpty())
-                                            <img src="{{ asset('storage/' . $car->images->first()->path) }}" alt="{{ $car->name }}" class="h-10 w-16 object-cover rounded">
+                                            <img src="{{ str_starts_with($car->images->first()->image_path, 'http') ? $car->images->first()->image_path : asset('storage/' . $car->images->first()->image_path) }}" alt="{{ $car->name }}" class="h-10 w-16 object-cover rounded">
                                         @else
                                             <span class="text-xs text-gray-400">画像なし</span>
                                         @endif

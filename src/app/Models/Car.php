@@ -3,16 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use App\Models\CarImage;
-use App\Models\CarModel;
-use App\Models\Reservation;
 
 class Car extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'name',
         'type',
@@ -27,35 +23,37 @@ class Car extends Model
         'description',
         'is_public',
         'car_model_id',
-        'car_number',       // 必要であれば保持
-        'color',            // 必要であれば保持
-        'car_vin',          // 必要であれば保持
-        'passenger',        // capacityと重複の可能性あり
-        'store_id',         // 店舗がある場合に使用
+        'car_number',
+        'color',
+        'car_vin',
+        'passenger',
+        'store_id',
+        'company_id',
+        'inspection_date',
     ];
 
-    /**
-     * モデルとのリレーション（belongsTo）
-     */
-    public function carModel()
+    protected $casts = [
+        'inspection_date' => 'date',
+    ];
+
+    public function company(): BelongsTo
     {
-        return $this->belongsTo(CarModel::class, 'car_model_id');
+        return $this->belongsTo(Company::class);
     }
 
-    /**
-     * 車両画像とのリレーション（hasMany）
-     */
-    public function images()
+    public function carModel(): BelongsTo
     {
-        return $this->hasMany(CarImage::class, 'car_id');
+        return $this->belongsTo(CarModel::class);
     }
 
-    /**
-     * 予約とのリレーション（hasMany）
-     */
-    public function reservations()
+    public function images(): HasMany
     {
-        return $this->hasMany(Reservation::class, 'car_id');
+        return $this->hasMany(CarImage::class);
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class);
     }
 
     /**
@@ -69,6 +67,22 @@ class Car extends Model
                    ->where('end_datetime', '>', $start);
             });
         });
+    }
+
+    /**
+     * 公開されている車両のみを取得するスコープ
+     */
+    public function scopePublic($query)
+    {
+        return $query->where('is_public', true);
+    }
+
+    /**
+     * 特定の会社の車両のみを取得するスコープ
+     */
+    public function scopeByCompany($query, $companyId)
+    {
+        return $query->where('company_id', $companyId);
     }
 
     /**

@@ -15,9 +15,27 @@
         <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet" />
         <link href="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css" rel="stylesheet" />
 
+        <!-- Alpine.js -->
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+        <!-- litepicker -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css" />
+        <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/bundle.js"></script>
+
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @stack('styles')
+        
+        <!-- Custom CSS for navigation scrollbar -->
+        <style>
+            .scrollbar-hide {
+                -ms-overflow-style: none;  /* Internet Explorer 10+ */
+                scrollbar-width: none;  /* Firefox */
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;  /* Safari and Chrome */
+            }
+        </style>
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">

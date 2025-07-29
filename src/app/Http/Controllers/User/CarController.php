@@ -5,11 +5,71 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Car;
 use App\Models\Option;
+use App\Models\Company;
+use App\Models\Shop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class CarController extends Controller
 {
+    /**
+     * 営業時間から出発時間と返却時間のデフォルト値を計算
+     */
+    private function calculateDefaultTimes($businessHours)
+    {
+        // 営業時間の形式: "8:00〜20:00" または "9:00-18:00" など
+        $pattern = '/(\d{1,2}):(\d{2})[〜\-~]\s*(\d{1,2}):(\d{2})/u';
+        
+        if (preg_match($pattern, $businessHours, $matches)) {
+            $openHour = (int)$matches[1];
+            $openMinute = (int)$matches[2];
+            $closeHour = (int)$matches[3];
+            $closeMinute = (int)$matches[4];
+            
+            // デバッグ用（本番環境では削除）
+            Log::info('Parsed hours: ' . $openHour . ':' . $openMinute . ' - ' . $closeHour . ':' . $closeMinute);
+            
+            // 出発時間: 営業開始時間をそのまま使用
+            $departureHour = $openHour;
+            $departureMinute = $openMinute;
+            
+            // 返却時間: 営業終了時間をそのまま使用
+            $returnHour = $closeHour;
+            $returnMinute = $closeMinute;
+            
+            // 5分刻みに調整
+            $departureMinute = round($departureMinute / 5) * 5;
+            $returnMinute = round($returnMinute / 5) * 5;
+            
+            // 分が60になった場合は時間に繰り上げ
+            if ($departureMinute >= 60) {
+                $departureHour += 1;
+                $departureMinute = 0;
+            }
+            if ($returnMinute >= 60) {
+                $returnHour += 1;
+                $returnMinute = 0;
+            }
+            
+            $result = [
+                'start' => sprintf('%02d:%02d', $departureHour, $departureMinute),
+                'end' => sprintf('%02d:%02d', $returnHour, $returnMinute)
+            ];
+            
+            // デバッグ用（本番環境では削除）
+            Log::info('Calculated result: ' . json_encode($result));
+            
+            return $result;
+        }
+        
+        // デバッグ用（本番環境では削除）
+        Log::info('Business hours parsing failed for: ' . $businessHours);
+        
+        // デフォルト値（営業時間が解析できない場合）
+        return ['start' => '09:00', 'end' => '18:00'];
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -42,7 +102,11 @@ class CarController extends Controller
         // ------------------------
         // 2. クエリ構築
         // ------------------------
-        $query = Car::query();
+        $query = Car::query()
+            ->public() // 公開設定が有効な車両のみ
+            ->when($request->filled('company_id'), function ($query) use ($request) {
+                return $query->byCompany($request->input('company_id'));
+            });
 
         // 車種フィルター
         if ($request->filled('type')) {
@@ -57,7 +121,7 @@ class CarController extends Controller
         // 予約重複チェック: 指定された期間に予約が入っていない車のみを対象とする
         if ($startDateTime && $endDateTime && $endDateTime->gt($startDateTime)) {
             $query->whereDoesntHave('reservations', function ($q) use ($startDateTime, $endDateTime) {
-                $q->where('status', 'confirmed') // 'confirmed' ステータスの予約のみを考慮
+                $q->where('status', '!=', 'cancelled') // キャンセル以外の全ステータスを考慮（ReservationControllerと統一）
                   ->where(function ($subQuery) use ($startDateTime, $endDateTime) {
                     // 既存の予約が指定期間と少しでも重なる場合は除外
                     // 条件: (予約開始 < 指定終了 AND 予約終了 > 指定開始)
@@ -83,20 +147,30 @@ class CarController extends Controller
                 break;
         }
 
-        // 関連画像と一緒に取得
-        $cars = $query->with('images')->paginate(10)->through(function ($car) use ($startDateTime, $endDateTime) {
+        // 関連データと一緒に取得
+        $cars = $query->with(['images', 'company', 'carModel'])->paginate(10)->through(function ($car) use ($startDateTime, $endDateTime) {
             // ページネーションされた各車両に対して料金計算ロジックを適用
             if ($startDateTime && $endDateTime && $endDateTime->gt($startDateTime)) {
-                // 日付のみを比較するために、時刻をリセットしたコピーを作成
-                $startDate = $startDateTime->copy()->startOfDay();
-                $endDate = $endDateTime->copy()->startOfDay();
-
-                // カレンダー上の日数と泊数を計算
-                $days = $startDate->diffInDays($endDate) + 1;
-                $nights = $startDate->diffInDays($endDate);
+                // 日数・泊数の計算
+                $isSameDay = $startDateTime->isSameDay($endDateTime);
+                
+                if ($isSameDay) {
+                    // 同日の場合は、時間に関係なく1日計算
+                    $days = 1;
+                    $nights = 0;
+                } else {
+                    // 日を跨ぐ場合は、日数+1で計算
+                    $days = $startDateTime->diffInDays($endDateTime) + 1;
+                    $nights = $startDateTime->diffInDays($endDateTime);
+                    
+                    // 整数に変換
+                    $days = (int)$days;
+                    $nights = (int)$nights;
+                }
+                
                 $car->totalPrice = $car->price * $days;
 
-                if ($nights === 0) {
+                if ($isSameDay) {
                     $car->durationLabel = '日帰り';
                 } else {
                     $car->durationLabel = "{$nights}泊{$days}日";
@@ -110,13 +184,46 @@ class CarController extends Controller
             return $car;
         });
 
+        // 会社一覧を取得（フィルター用）
+        $companies = \App\Models\Company::has('cars')->get();
+
+        // 営業時間からデフォルト時間を取得
+        $defaultTimes = ['start' => '09:00', 'end' => '18:00'];
+        
+        // データベースから営業時間を取得
+        $shop = Shop::first();
+        $businessHours = $shop ? $shop->business_hours : null;
+        
+        // デバッグ用（本番環境では削除）
+        Log::info('Shop found: ' . ($shop ? 'yes' : 'no'));
+        Log::info('Business hours from DB: ' . ($businessHours ?? 'null'));
+        
+        $defaultTimes = ['start' => '09:00', 'end' => '18:00']; // デフォルト値
+        
+        if ($businessHours) {
+            $defaultTimes = $this->calculateDefaultTimes($businessHours);
+            Log::info('Default times: ' . json_encode($defaultTimes));
+        }
+
         // ------------------------
         // 3. 表示
         // ------------------------
+        // 営業時間を取得（Bladeテンプレートで使用）
+        $businessHours = $shop ? $shop->business_hours : null;
+        $parsedBusinessHours = null;
+        if ($businessHours) {
+            $parsedBusinessHours = $this->calculateDefaultTimes($businessHours);
+        }
+        
         return view('user.cars.index', [
             'cars' => $cars,
+            'companies' => $companies,
             'startDateTime' => $startDateTime,
             'endDateTime' => $endDateTime,
+            'defaultStartTime' => $defaultTimes['start'],
+            'defaultEndTime' => $defaultTimes['end'],
+            'businessHours' => $businessHours,
+            'parsedBusinessHours' => $parsedBusinessHours,
         ]);
     }    /**
      * Show the form for creating a new resource.
@@ -157,14 +264,22 @@ class CarController extends Controller
         $totalPrice = 0;
 
         if ($start && $end && $end->gt($start)) {
-             // 日付のみを比較するために、時刻をリセットしたコピーを作成
-            $startDate = $start->copy()->startOfDay();
-            $endDate = $end->copy()->startOfDay();
-
-            // カレンダー上の日数と泊数を計算
-            $days = $startDate->diffInDays($endDate) + 1;
-            $nights = $startDate->diffInDays($endDate);
-            $isSameDay = ($nights === 0);
+            // 日数・泊数の計算
+            $isSameDay = $start->isSameDay($end);
+            
+            if ($isSameDay) {
+                // 同日の場合は、時間に関係なく1日計算
+                $days = 1;
+                $nights = 0;
+            } else {
+                // 日を跨ぐ場合は、日数+1で計算
+                $days = $start->diffInDays($end) + 1;
+                $nights = $start->diffInDays($end);
+                
+                // 整数に変換
+                $days = (int)$days;
+                $nights = (int)$nights;
+            }
 
             $totalPrice = $car->price * $days;
         } else {
