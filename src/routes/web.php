@@ -130,9 +130,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // ユーザー側
-Route::get('/', fn() => view('welcome'))->name('welcome');
-Route::get('/pricing', fn() => view('user.store.pricing'))->name('store.pricing');
-Route::get('/store-info', fn() => view('user.store.info'))->name('store.info');
+Route::get('/', [CarController::class, 'index'])->name('welcome');
+Route::get('/pricing', [\App\Http\Controllers\User\StoreController::class, 'pricing'])->name('store.pricing');
+Route::get('/store-info', [\App\Http\Controllers\User\StoreController::class, 'info'])->name('store.info');
 
 // 1. 空車一覧（検索結果）
 Route::get('/cars', [CarController::class, 'index'])->name('user.cars.index');
