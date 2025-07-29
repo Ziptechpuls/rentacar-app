@@ -31,6 +31,12 @@ RUN rm -f /var/www/public/storage && cd /var/www && php artisan storage:link || 
 # マイグレーションを実行
 RUN cd /var/www && php artisan migrate --force || true
 
+# APP_KEYを設定（環境変数で上書き可能）
+ENV APP_KEY=base64:bKgR/552hTzM1F7jDXIcr9Yt/YXUIKJ4uyIdMZN0spc=
+ENV APP_ENV=production
+ENV APP_DEBUG=false
+ENV LOG_CHANNEL=stderr
+
 # 既存のnginx設定ファイルを削除
 RUN rm -f /etc/nginx/conf.d/*
 # sites-enabledディレクトリも削除
