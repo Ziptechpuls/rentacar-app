@@ -12,10 +12,7 @@ use App\Http\Controllers\User\Auth\ProfileController as UserProfileController;
 use App\Http\Controllers\User\CarController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\ReservationController;
-<<<<<<< Updated upstream
-=======
 use Illuminate\Support\Facades\Mail;
->>>>>>> Stashed changes
 use App\Http\Controllers\Admin\PriceController;
 use App\Http\Controllers\Admin\PrivacyController;
 use App\Http\Controllers\Admin\TermsController;
@@ -24,17 +21,6 @@ use App\Http\Controllers\Admin\OptionController;
 use App\Http\Controllers\Admin\ShopController;
 use App\Http\Controllers\Admin\ExpenseCategoryController;
 
-<<<<<<< Updated upstream
-
-// ユーザー側のトップページ
-Route::get('/', function () {
-    return view('welcome');
-});
-
-// プラットフォーム管理者用ルートは別ドメインで処理するため、ここでは定義しない
-
-=======
->>>>>>> Stashed changes
 // 管理者側ルーティング
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', fn () => redirect()->route('admin.login'));
@@ -144,17 +130,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // ユーザー側
-<<<<<<< Updated upstream
-Route::middleware('guest')->group(function () {
-    Route::get('/', function () {
-        return view('welcome');
-    });
-});
-=======
 Route::get('/', fn() => view('welcome'))->name('welcome');
 Route::get('/pricing', fn() => view('user.store.pricing'))->name('store.pricing');
 Route::get('/store-info', fn() => view('user.store.info'))->name('store.info');
->>>>>>> Stashed changes
 
 // 1. 空車一覧（検索結果）
 Route::get('/cars', [CarController::class, 'index'])->name('user.cars.index');
@@ -197,12 +175,5 @@ Route::prefix('policies')->name('user.')->group(function () {
     })->name('cancel');
 });
 
-<<<<<<< Updated upstream
-
-
-
-
-=======
 // 認証関連
->>>>>>> Stashed changes
 require __DIR__.'/auth.php';
