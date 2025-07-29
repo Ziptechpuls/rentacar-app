@@ -44,6 +44,11 @@ COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # php-fpmのエラーログを標準出力に出す
 RUN sed -i 's|^;error_log = log/php-fpm.log|error_log = /dev/stderr|' /usr/local/etc/php-fpm.conf
+# php-fpmの設定を修正
+RUN sed -i 's|^listen = 127.0.0.1:9000|listen = 9000|' /usr/local/etc/php-fpm.d/www.conf
+RUN sed -i 's|^;listen.owner = www-data|listen.owner = www-data|' /usr/local/etc/php-fpm.d/www.conf
+RUN sed -i 's|^;listen.group = www-data|listen.group = www-data|' /usr/local/etc/php-fpm.d/www.conf
+RUN sed -i 's|^;listen.mode = 0660|listen.mode = 0660|' /usr/local/etc/php-fpm.d/www.conf
 
 # 作業ディレクトリ
 WORKDIR /var/www
