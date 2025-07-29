@@ -34,14 +34,14 @@ RUN cd /var/www && php artisan migrate --force || true
 # APP_KEYを設定（環境変数で上書き可能）
 ENV APP_KEY=base64:bKgR/552hTzM1F7jDXIcr9Yt/YXUIKJ4uyIdMZN0spc=
 ENV APP_ENV=production
-ENV APP_DEBUG=false
+ENV APP_DEBUG=true
 ENV LOG_CHANNEL=stderr
 ENV DB_CONNECTION=pgsql
 ENV DB_HOST=aws-0-ap-northeast-1.pooler.supabase.com
-ENV DB_PORT=5432
+ENV DB_PORT=6543
 ENV DB_DATABASE=postgres
 ENV DB_USERNAME=postgres.fzgjparlyawglrjwrldr
-ENV DB_PASSWORD=Ziptech098!@#
+ENV DB_PASSWORD=Ziptech098!@
 ENV SESSION_DRIVER=file
 ENV CACHE_STORE=file
 
