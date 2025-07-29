@@ -36,6 +36,14 @@ ENV APP_KEY=base64:bKgR/552hTzM1F7jDXIcr9Yt/YXUIKJ4uyIdMZN0spc=
 ENV APP_ENV=production
 ENV APP_DEBUG=false
 ENV LOG_CHANNEL=stderr
+ENV DB_CONNECTION=pgsql
+ENV DB_HOST=db.fzgjparlyawglrjwrldr.supabase.co
+ENV DB_PORT=5432
+ENV DB_DATABASE=postgres
+ENV DB_USERNAME=postgres
+ENV DB_PASSWORD=Ziptech098!@#
+ENV SESSION_DRIVER=file
+ENV CACHE_STORE=file
 
 # 既存のnginx設定ファイルを削除
 RUN rm -f /etc/nginx/conf.d/*
