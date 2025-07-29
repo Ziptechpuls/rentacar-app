@@ -22,8 +22,9 @@ COPY src/. /var/www
 # composer install（本番用）
 RUN cd /var/www && composer install --no-dev --optimize-autoloader
 
-# npm installとビルド
+# npm installとビルド（本番環境用）
 RUN cd /var/www && npm install && npm run build
+RUN chown -R www-data:www-data /var/www/public/build
 
 # storageとbootstrap/cacheのパーミッション修正
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
