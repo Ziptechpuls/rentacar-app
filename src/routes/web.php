@@ -30,7 +30,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // 未認証の管理者向け
     Route::middleware('guest:admin')->group(function () {
         Route::get('/login', [AdminAuthenticatedSessionController::class, 'create'])->name('login');
+        Route::get('/signin', [AdminAuthenticatedSessionController::class, 'create'])->name('signin');
+        Route::get('/auth', [AdminAuthenticatedSessionController::class, 'create'])->name('auth');
         Route::post('/login', [AdminAuthenticatedSessionController::class, 'store']);
+        Route::post('/signin', [AdminAuthenticatedSessionController::class, 'store']);
+        Route::post('/auth', [AdminAuthenticatedSessionController::class, 'store']);
 
         // 管理者登録画面表示
         Route::get('/register', [AdminRegisteredUserController::class, 'create'])->name('register');
@@ -168,7 +172,7 @@ Route::prefix('/cars/{car}/reservations')->name('user.cars.reservations.')->grou
 
 // 認証済みユーザー向け
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/mypage', [MypageController::class, 'index'])->name('mypage');
+    // Route::get('/mypage', [MypageController::class, 'index'])->name('mypage'); // TODO: MypageController作成後に有効化
     Route::get('/profile', [UserProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [UserProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [UserProfileController::class, 'destroy'])->name('profile.destroy');

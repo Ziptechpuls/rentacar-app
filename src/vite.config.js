@@ -6,10 +6,13 @@ export default defineConfig({
         laravel({
             input: ["resources/css/app.css", "resources/js/app.js"],
             refresh: true,
-            // Force HTTPS for asset URLs in production
-            buildDirectory: 'build',
+            buildDirectory: "build",
         }),
     ],
+    base:
+        process.env.NODE_ENV === "production"
+            ? "https://rentacar-app.onrender.com/"
+            : "http://localhost:8080/",
     server: {
         https: true,
     },
@@ -17,9 +20,9 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 assetFileNames: (assetInfo) => {
-                    let extType = assetInfo.name.split('.').at(1);
+                    let extType = assetInfo.name.split(".").at(1);
                     if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
-                        extType = 'img';
+                        extType = "img";
                     }
                     return `assets/${extType}/[name]-[hash][extname]`;
                 },

@@ -25,7 +25,7 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('mypage') }}">
+                    <a href="{{ route('welcome') }}">
                         <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
                     </a>
                 </div>
@@ -49,7 +49,7 @@
                         {{ __('ログインする') }}
                     </x-nav-link>
                     @else
-                    <x-nav-link :href="route('mypage')" :active="request()->routeIs('mypage')">
+                    <x-nav-link :href="route('welcome')" :active="request()->routeIs('welcome')">
                         {{ __('マイページ') }}
                     </x-nav-link>
                     @endguest                
@@ -89,7 +89,7 @@
                 {{ __('ログインする') }}
             </x-nav-link>
             @else
-            <x-nav-link :href="route('mypage')" :active="request()->routeIs('mypage')">
+            <x-nav-link :href="route('welcome')" :active="request()->routeIs('welcome')">
                 {{ __('マイページ') }}
             </x-nav-link>
             @endguest                
