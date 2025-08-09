@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Car;
 use App\Models\CarModel;
+use App\Models\CarTypePrice;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -83,13 +84,24 @@ class CarController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|string|max:50', // 例: 軽自動車, セダンなど
+            'type' => [
+                'required',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) {
+                    // 車両タイプに対応する料金設定が存在するかチェック
+                    $carTypePrice = \App\Models\CarTypePrice::getApplicablePriceByTypeAndDate($value, now());
+                    if (!$carTypePrice) {
+                        $fail("選択された車両タイプ「{$value}」の料金設定が見つかりません。先に車両タイプ別料金設定で料金を設定してください。");
+                    }
+                }
+            ],
             'color' => 'nullable|string|max:50',
             'inspection_date' => 'nullable|date',
             'capacity' => 'required|integer|min:1',
-            'price' => 'required|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
             'transmission' => 'required|string|in:AT,MT',
-            'smoking_preference' => ['required', Rule::in(['smoking', 'non-smoking'])],
+            'smoking_preference' => ['required', Rule::in(['禁煙', '喫煙可', '電子タバコのみ可'])],
             'has_bluetooth' => 'nullable|boolean',
             'has_back_monitor' => 'nullable|boolean',
             'has_navigation' => 'nullable|boolean',
@@ -111,6 +123,11 @@ class CarController extends Controller
 
         // ログイン中の管理者の会社IDを設定
         $validated['company_id'] = auth('admin')->user()->company_id;
+
+        // 車両タイプに応じて料金を自動設定
+        // バリデーションで料金設定の存在を確認済みなので、必ず取得できる
+        $carTypePrice = \App\Models\CarTypePrice::getApplicablePriceByTypeAndDate($validated['type'], now());
+        $validated['price'] = $carTypePrice->price_per_day;
 
         // 画像以外のデータを先に保存
         $carData = collect($validated)->except('images')->toArray();
@@ -144,12 +161,23 @@ class CarController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|string|max:50',
+            'type' => [
+                'required',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) {
+                    // 車両タイプに対応する料金設定が存在するかチェック
+                    $carTypePrice = \App\Models\CarTypePrice::getApplicablePriceByTypeAndDate($value, now());
+                    if (!$carTypePrice) {
+                        $fail("選択された車両タイプ「{$value}」の料金設定が見つかりません。先に車両タイプ別料金設定で料金を設定してください。");
+                    }
+                }
+            ],
             'color' => 'nullable|string|max:50',
             'capacity' => 'required|integer|min:1',
-            'price' => 'required|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
             'transmission' => 'required|string|in:AT,MT',
-            'smoking_preference' => ['required', Rule::in(['smoking', 'non-smoking'])],
+            'smoking_preference' => ['required', Rule::in(['禁煙', '喫煙可', '電子タバコのみ可'])],
             'has_bluetooth' => 'nullable|boolean',
             'has_back_monitor' => 'nullable|boolean',
             'has_navigation' => 'nullable|boolean',
@@ -170,6 +198,11 @@ class CarController extends Controller
         $validated['has_back_monitor'] = $request->boolean('has_back_monitor');
         $validated['has_navigation'] = $request->boolean('has_navigation');
         $validated['has_etc'] = $request->boolean('has_etc');
+
+        // 車両タイプに応じて料金を自動設定（更新時も適用）
+        // バリデーションで料金設定の存在を確認済みなので、必ず取得できる
+        $carTypePrice = \App\Models\CarTypePrice::getApplicablePriceByTypeAndDate($validated['type'], now());
+        $validated['price'] = $carTypePrice->price_per_day;
 
         // 画像以外のデータを先に更新
         $carData = collect($validated)->except('images')->toArray();

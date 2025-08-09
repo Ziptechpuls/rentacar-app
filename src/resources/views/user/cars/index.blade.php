@@ -105,7 +105,7 @@
                                 @endforeach
 
                                 <select name="type" onchange="this.form.submit()" class="w-40 border-gray-300 rounded-md shadow-sm px-2 py-1">
-                                    <option value="">車種</option>
+                                                                            <option value="">車両タイプ</option>
                                     @foreach (['軽自動車', 'コンパクトカー','セダン', 'SUV','ミニバン','ハイエース'] as $type)
                                         <option value="{{ $type }}" {{ request('type') == $type ? 'selected' : '' }}>{{ $type }}</option>
                                     @endforeach
@@ -193,6 +193,13 @@
                                                 <span class="{{ $badge }}">{{ $equipment['icon'] }} {{ $equipment['label'] }}</span>
                                             @endforeach
                                         </div>
+
+                                        {{-- 車両説明 --}}
+                                        @if($car->description)
+                                            <div class="text-sm text-gray-700 mt-3 bg-gray-50 p-3 rounded-md border-l-4 border-blue-400">
+                                                <p class="leading-relaxed">{{ $car->description }}</p>
+                                            </div>
+                                        @endif
 
                                         {{-- 料金表示 --}}
                                         <div class="mt-3 font-bold text-lg text-blue-600">

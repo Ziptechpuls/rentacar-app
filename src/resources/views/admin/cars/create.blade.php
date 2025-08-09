@@ -33,9 +33,9 @@
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300" placeholder="アクア、ノートなど"/>
                                 </div>
 
-                                <!-- 車種 -->
+                                <!-- 車両タイプ -->
                                 <div>
-                                    <label for="type" class="block text-sm font-medium text-gray-700">車種 <span class="text-red-500">*</span></label>
+                                    <label for="type" class="block text-sm font-medium text-gray-700">車両タイプ <span class="text-red-500">*</span></label>
                                     <select id="type" name="type" required
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300">
                                         <option value="">選択してください</option>
@@ -43,14 +43,9 @@
                                             <option value="{{ $value }}" {{ old('type') == $value ? 'selected' : '' }}>{{ $value }}</option>
                                         @endforeach
                                     </select>
+                                    <div id="price-info" class="mt-2 text-sm"></div>
                                 </div>
 
-                                <!-- 料金 -->
-                                <div>
-                                    <label for="price" class="block text-sm font-medium text-gray-700">料金 (/日) <span class="text-red-500">*</span></label>
-                                    <input id="price" name="price" type="number" min="0" value="{{ old('price') }}" required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300" />
-                                </div>
 
                                 <!-- 定員 -->
                                 <div>
@@ -217,8 +212,7 @@
                                 {{-- 右側：情報 --}}
                                 <div class="flex flex-col">
                                     <h4 class="text-md font-bold">{{ $car->name }}</h4>
-                                    <p class="text-sm text-gray-600">車種: {{ $car->type }}</p>
-                                    <p class="text-sm text-gray-600">料金: ¥{{ number_format($car->price) }}/日</p>
+                                    <p class="text-sm text-gray-600">車両タイプ: {{ $car->type }}</p>
                                     <p class="text-sm text-gray-600">ミッション: {{ $car->transmission }}</p>
                                     <p class="text-sm text-gray-600">禁煙/喫煙: {{ $car->smoking_preference }}</p>
                                 </div>
@@ -231,6 +225,30 @@
     </div>
     @push('scripts')
     <script>
+        // 車両タイプ選択時に料金を自動設定（現在の日付で適用される料金を取得）
+        document.getElementById('type').addEventListener('change', function() {
+            const selectedType = this.value;
+            const priceInput = document.getElementById('price');
+            
+            if (selectedType) {
+                // 現在の日付で適用される料金を取得するAPIを呼び出す
+                fetch(`/admin/car-type-prices/get-price-by-type-and-date?car_type=${selectedType}&date=${new Date().toISOString().split('T')[0]}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.price) {
+                            priceInput.value = data.price.price_normal;
+                            priceInput.classList.add('bg-green-50');
+                            setTimeout(() => {
+                                priceInput.classList.remove('bg-green-50');
+                            }, 2000);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('料金取得エラー:', error);
+                    });
+            }
+        });
+
         document.getElementById('images').addEventListener('change', function(event) {
             const preview = document.getElementById('preview');
             preview.innerHTML = ''; // 以前のプレビューをクリア
@@ -268,5 +286,33 @@
     <script src="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.js"></script>
     <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js"></script>
     <script src="https://unpkg.com/filepond-plugin-file-validate-size/dist/filepond-plugin-file-validate-size.js"></script>
+    
+    <script>
+        // 車両タイプ選択時の料金チェック
+        document.addEventListener('DOMContentLoaded', function() {
+            const typeSelect = document.getElementById('type');
+            const priceInfo = document.getElementById('price-info');
+
+            typeSelect.addEventListener('change', function() {
+                const selectedType = this.value;
+                
+                if (!selectedType) {
+                    priceInfo.innerHTML = '';
+                    return;
+                }
+
+                // 料金設定をチェック（仮のURL、実際のAPIエンドポイントに合わせて調整）
+                priceInfo.innerHTML = '<span class="text-gray-500">料金設定を確認中...</span>';
+                
+                // 実際のAPIが実装されるまでは、選択された車両タイプを表示
+                priceInfo.innerHTML = `<span class="text-blue-600">選択された車両タイプ: ${selectedType}</span>`;
+            });
+
+            // 初期表示時にもチェック
+            if (typeSelect.value) {
+                typeSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    </script>
     @endpush
 </x-admin-layout>

@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\CancelController;
 use App\Http\Controllers\Admin\OptionController;
 use App\Http\Controllers\Admin\ShopController;
 use App\Http\Controllers\Admin\ExpenseCategoryController;
+use App\Http\Controllers\Admin\CarTypePriceController;
+use App\Http\Controllers\Admin\SeasonPriceController;
 
 
 // ユーザー側のトップページ
@@ -33,13 +35,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', fn () => redirect()->route('admin.login'));
 
     // 未認証の管理者向け
-    Route::middleware('guest')->group(function () {
+    Route::middleware('guest:admin')->group(function () {
         Route::get('/login', [AdminAuthenticatedSessionController::class, 'create'])->name('login');
         Route::post('/login', [AdminAuthenticatedSessionController::class, 'store']);
 
         // 管理者登録画面表示
         Route::get('/register', [AdminRegisteredUserController::class, 'create'])->name('register');
-        Route::post('/register', [AdminRegisteredUserController::class, 'store']); // 登録処理
+        Route::post('/register', [AdminRegisteredUserController::class, 'store'])->name('register.store'); // 登録処理
     });
 
     // 認証済みの管理者向け
@@ -128,6 +130,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('shop', [ShopController::class, 'index'])->name('shop.index');
         Route::get('shop/edit', [ShopController::class, 'edit'])->name('shop.edit');
         Route::put('/shop', [ShopController::class, 'update'])->name('shop.update');
+
+        // 車両タイプ別料金管理
+        Route::get('car-type-prices', [CarTypePriceController::class, 'index'])->name('car-type-prices.index');
+        Route::get('car-type-prices/create-yearly', [CarTypePriceController::class, 'createYearly'])->name('car-type-prices.create-yearly');
+        Route::post('car-type-prices/store-yearly', [CarTypePriceController::class, 'storeYearly'])->name('car-type-prices.store-yearly');
+        Route::get('car-type-prices/get-existing-data', [CarTypePriceController::class, 'getExistingData'])->name('car-type-prices.get-existing-data');
+        Route::get('car-type-prices/get-season-prices', [CarTypePriceController::class, 'getSeasonPrices'])->name('car-type-prices.get-season-prices');
+        Route::get('car-type-prices/{carTypePrice}/edit', [CarTypePriceController::class, 'edit'])->name('car-type-prices.edit');
+        Route::put('car-type-prices/{carTypePrice}', [CarTypePriceController::class, 'update'])->name('car-type-prices.update');
+        Route::delete('car-type-prices/{carTypePrice}', [CarTypePriceController::class, 'destroy'])->name('car-type-prices.destroy');
+        Route::patch('car-type-prices/{carTypePrice}/toggle-active', [CarTypePriceController::class, 'toggleActive'])->name('car-type-prices.toggle-active');
+        Route::get('car-type-prices/get-price-by-type-and-date', [CarTypePriceController::class, 'getPriceByTypeAndDate'])->name('car-type-prices.get-price-by-type-and-date');
+
+
 
 
 

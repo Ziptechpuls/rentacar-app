@@ -59,7 +59,7 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">車種</label>
+                                    <label class="block text-sm font-medium text-gray-700">車両タイプ</label>
                                     <p class="mt-1 text-sm text-gray-900" id="car-model-name">{{ $reservation->car->carModel->name }}</p>
                                 </div>
                                 <div>

@@ -46,7 +46,7 @@
 
                             <div class="sm:w-1/2 space-y-2">
                                 <div><strong>車名：</strong>{{ $car->name }}</div>
-                                <div><strong>車種：</strong>{{ $car->type }}</div>
+                                <div><strong>車両タイプ：</strong>{{ $car->type }}</div>
                                 <div><strong>乗車人数：</strong>{{ $car->capacity }}人</div>
                                 <div><strong>ミッション：</strong>{{ $car->transmission }}</div>
                                 <div><strong>喫煙可否：</strong>{{ $car->smoking_preference_label }}</div>

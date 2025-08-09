@@ -29,12 +29,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // 管理者ログイン時刻を更新
-        $admin = Auth::guard('admin')->user();
-        if ($admin) {
-            $admin->update(['last_login_at' => Carbon::now()]);
-        }
-
         return redirect()->intended(route('admin.dashboard', absolute: false));
     }
 
@@ -43,11 +37,20 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // 管理者認証をログアウト
         Auth::guard('admin')->logout();
 
+        // セッションを完全に無効化
         $request->session()->invalidate();
 
+        // CSRFトークンを再生成
         $request->session()->regenerateToken();
+
+        // 車両タイプ料金設定のセッションデータもクリア
+        $request->session()->forget('car_type_price_yearly_input');
+
+        // その他の管理者関連セッションデータをクリア
+        $request->session()->flush();
 
         return redirect()->route('admin.login');
     }

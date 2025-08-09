@@ -180,7 +180,7 @@
                                 </p>
                             </div>
                             <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700">車種</label>
+                                <label class="block text-sm font-medium text-gray-700">車両タイプ</label>
                                 <p class="mt-1 text-sm text-gray-900">{{ $reservation->car->carModel->name ?? '不明' }}</p>
                             </div>
                             <div class="mb-4">

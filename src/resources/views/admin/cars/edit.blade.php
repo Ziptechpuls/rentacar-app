@@ -35,7 +35,7 @@
                                 </div>
 
                                 <div>
-                                    <label for="type" class="block text-sm font-medium text-gray-700">車種 <span class="text-red-500">*</span></label>
+                                    <label for="type" class="block text-sm font-medium text-gray-700">車両タイプ <span class="text-red-500">*</span></label>
                                     <select id="type" name="type" required
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300">
                                         <option value="">選択してください</option>
@@ -43,13 +43,10 @@
                                             <option value="{{ $value }}" {{ old('type', $car->type) == $value ? 'selected' : '' }}>{{ $value }}</option>
                                         @endforeach
                                     </select>
+                                    <div id="price-info" class="mt-2 text-sm"></div>
                                 </div>
 
-                                <div>
-                                    <label for="price" class="block text-sm font-medium text-gray-700">料金 (/日) <span class="text-red-500">*</span></label>
-                                    <input id="price" name="price" type="number" min="0" value="{{ old('price', $car->price) }}" required
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-200 focus:border-indigo-300" />
-                                </div>
+
 
                                 <div>
                                     <label for="capacity" class="block text-sm font-medium text-gray-700">定員 <span class="text-red-500">*</span></label>
