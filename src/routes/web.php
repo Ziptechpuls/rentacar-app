@@ -12,6 +12,7 @@ use App\Http\Controllers\User\Auth\ProfileController as UserProfileController;
 use App\Http\Controllers\User\CarController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\User\ReservationController;
+use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\Admin\PriceController;
 use App\Http\Controllers\Admin\PrivacyController;
 use App\Http\Controllers\Admin\TermsController;
@@ -21,14 +22,6 @@ use App\Http\Controllers\Admin\ShopController;
 use App\Http\Controllers\Admin\ExpenseCategoryController;
 use App\Http\Controllers\Admin\CarTypePriceController;
 use App\Http\Controllers\Admin\SeasonPriceController;
-
-
-// ユーザー側のトップページ
-Route::get('/', function () {
-    return view('welcome');
-});
-
-// プラットフォーム管理者用ルートは別ドメインで処理するため、ここでは定義しない
 
 // 管理者側ルーティング
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -153,11 +146,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // ユーザー側
-Route::middleware('guest')->group(function () {
-    Route::get('/', function () {
-        return view('welcome');
-    });
-});
+Route::get('/', [CarController::class, 'index'])->name('welcome');
+Route::get('/pricing', [\App\Http\Controllers\User\StoreController::class, 'pricing'])->name('store.pricing');
+Route::get('/store-info', [\App\Http\Controllers\User\StoreController::class, 'info'])->name('store.info');
 
 // 1. 空車一覧（検索結果）
 Route::get('/cars', [CarController::class, 'index'])->name('user.cars.index');
@@ -167,63 +158,21 @@ Route::get('/cars/{car}', [CarController::class, 'show'])->name('user.cars.show'
 
 // 3～7. 予約フロー（car単位にまとめる）
 Route::prefix('/cars/{car}/reservations')->name('user.cars.reservations.')->group(function () {
-
-    // ★変更：ステップ1-A：オプション等確認画面表示 (GET)
-    Route::get('option-confirm', [ReservationController::class, 'showOptionConfirm'])
-        ->name('show-option-confirm');
-
-    // ステップ1-B：オプション等確認後、セッション保存しお客様情報入力へ (POST)
-    Route::post('car-confirm', [ReservationController::class, 'carConfirm'])
-        ->name('car-confirm');
-
-    // ステップ2：お客様情報入力画面表示
-    Route::get('input', [ReservationController::class, 'input'])
-        ->name('input');
-
-    // ステップ3：お客様情報を保存し、最終確認画面へ
-    Route::post('confirm-customer', [ReservationController::class, 'confirmCustomer'])
-        ->name('confirm-customer');
-
-    // ステップ4：最終確認画面表示
-    Route::get('final-confirm', [ReservationController::class, 'finalConfirm'])
-        ->name('final-confirm');
-
-    // ステップ5：予約完了処理
-    Route::post('reserved', [ReservationController::class, 'reserved'])
-        ->name('reserved');
-
-    // ステップ6：予約完了画面表示
-    Route::get('complete/{reservation}', [ReservationController::class, 'complete'])
-        ->name('complete');
+    Route::get('option-confirm', [ReservationController::class, 'showOptionConfirm'])->name('show-option-confirm');
+    Route::post('car-confirm', [ReservationController::class, 'carConfirm'])->name('car-confirm');
+    Route::get('input', [ReservationController::class, 'input'])->name('input');
+    Route::post('final-confirm', [ReservationController::class, 'finalConfirm'])->name('final-confirm');
+    Route::post('store', [ReservationController::class, 'reserved'])->name('reserved');
+    Route::get('complete/{reservation}', [ReservationController::class, 'complete'])->name('complete');
 });
 
-// 料金表
-Route::get('/pricing', [\App\Http\Controllers\User\StoreController::class, 'pricing'])->name('store.pricing');
-
-// 店舗情報
-Route::get('/store-info', function () {
-    $shop = \App\Models\Shop::first();
-    return view('user.store.info', compact('shop'));
-})->name('store.info');
-
-// ログイン後のユーザー画面
-Route::get('/mypage', function () {
-    return view('user.mypage');
-})->middleware(['auth', 'verified'])->name('mypage');
-
-// ログイン後のユーザー画面の編集、更新、削除
-Route::middleware('auth')->group(function () {
+// 認証済みユーザー向け
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/mypage', [MypageController::class, 'index'])->name('mypage');
     Route::get('/profile', [UserProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [UserProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [UserProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
-// ログイン不要で予約可能
-Route::prefix('user')->name('user.')->group(function () {
-    Route::get('/price', [\App\Http\Controllers\User\PriceController::class, 'index'])->name('price.index');
-    Route::post('/reservations/confirm', [ReservationController::class, 'confirm'])->name('reservations.confirm');
-});
-
 // ポリシー関連のルート (ユーザー側フッター)
 Route::prefix('policies')->name('user.')->group(function () {
     Route::get('/privacy', function () {
@@ -239,11 +188,8 @@ Route::prefix('policies')->name('user.')->group(function () {
     Route::get('/cancel', function () {
         $policy = \App\Models\Policy::where('type', 'cancel')->first();
         return view('user.policies.show', ['policy' => $policy, 'title' => 'キャンセルポリシー']);
-          })->name('cancel');
+    })->name('cancel');
 });
 
-
-
-
-
+// 認証関連
 require __DIR__.'/auth.php';

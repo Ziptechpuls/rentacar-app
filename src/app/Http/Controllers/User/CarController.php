@@ -177,8 +177,8 @@ class CarController extends Controller
                 }
             } else {
                 // 日数・泊数・同日判定・合計料金のデフォルト値を設定
-                $isSameDay = true;
-                $totalPrice = $car->price;            
+                $car->totalPrice = $car->price; // 期間未指定の場合は1日あたりの料金を合計料金として表示
+                $car->durationLabel = '日帰り'; // 期間未指定の場合は「日帰り」と表示            
             }
 
             return $car;
@@ -271,6 +271,7 @@ class CarController extends Controller
                 // 同日の場合は、時間に関係なく1日計算
                 $days = 1;
                 $nights = 0;
+                $isDayTrip = true;
             } else {
                 // 日を跨ぐ場合は、日数+1で計算
                 $days = $start->diffInDays($end) + 1;
@@ -279,8 +280,9 @@ class CarController extends Controller
                 // 整数に変換
                 $days = (int)$days;
                 $nights = (int)$nights;
+                $isDayTrip = false;
             }
-
+            
             $totalPrice = $car->price * $days;
         } else {
             // 日付指定がなければ日帰り1日分の料金

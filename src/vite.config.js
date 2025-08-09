@@ -6,6 +6,24 @@ export default defineConfig({
         laravel({
             input: ["resources/css/app.css", "resources/js/app.js"],
             refresh: true,
+            // Force HTTPS for asset URLs in production
+            buildDirectory: 'build',
         }),
     ],
+    server: {
+        https: true,
+    },
+    build: {
+        rollupOptions: {
+            output: {
+                assetFileNames: (assetInfo) => {
+                    let extType = assetInfo.name.split('.').at(1);
+                    if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
+                        extType = 'img';
+                    }
+                    return `assets/${extType}/[name]-[hash][extname]`;
+                },
+            },
+        },
+    },
 });
