@@ -1,4 +1,4 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+<nav x-data="{ open: false }" class="bg-white border-b border-gray-100" style="position: relative; z-index: 50; overflow: visible;">
     <!-- Primary Navigation Menu -->
     <div class="px-2 md:px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -29,45 +29,116 @@
                     <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
                         {{ __('ダッシュボード') }}
                     </x-nav-link>
-                    <!-- システム設定ドロップダウン -->
-                    <div class="relative inline-flex items-center" x-data="{ dropdownOpen: false }" x-init="console.log('Alpine.js loaded for dropdown')">
-                        <button
-                            @click="dropdownOpen = !dropdownOpen; console.log('Dropdown clicked, state:', dropdownOpen)"
-                            @keydown.escape="dropdownOpen = false"
-                            class="inline-flex items-center h-full px-1 pt-1 border-b-2 text-sm font-medium leading-5 transition duration-150 ease-in-out"
-                            x-bind:class="dropdownOpen ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    <!-- システム設定ドロップダウン（ポータル方式） -->
+                    <div class="relative inline-flex items-center">
+                        <button 
+                            id="system-settings-trigger"
+                            type="button"
+                            class="inline-flex items-center h-full px-1 pt-1 border-b-2 text-sm font-medium leading-5 transition duration-150 ease-in-out border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:border-indigo-400 focus:text-gray-900"
+                            aria-haspopup="menu"
+                            aria-expanded="false"
                         >
                             {{ __('システム設定') }}
-                            <svg 
-                                style="transform: rotate(0deg);"
-                                x-bind:style="dropdownOpen ? 'transform: rotate(180deg)' : 'transform: rotate(0deg)'"
-                                class="w-4 h-4 ml-1 transition-all duration-200 ease-in-out"
-                                xmlns="http://www.w3.org/2000/svg" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
-                                stroke="currentColor"
-                            >
+                            <svg class="w-4 h-4 ml-1 transition-all duration-200 ease-in-out" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
-                        <div
-                            x-show="dropdownOpen"
-                            @click.away="dropdownOpen = false"
-                            x-transition
-                            class="absolute left-0 top-full z-50 w-56 mt-1 bg-white border border-gray-200 rounded-md shadow-lg"
-                            style="min-width: 12rem;"
-                        >
-                            <a href="{{ route('admin.shop.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">店舗情報</a>
-                            <a href="{{ route('admin.price.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">料金情報</a>
 
-                            <a href="{{ route('admin.car-type-prices.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">車両タイプ別料金</a>
-                            <a href="{{ route('admin.settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">システム設定</a>
-                            <a href="{{ route('admin.privacy.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">プライバシーポリシー</a>
-                            <a href="{{ route('admin.terms.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">利用規約</a>
-                            <a href="{{ route('admin.cancel.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">キャンセルポリシー</a>
-                            <a href="{{ route('admin.options.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">オプション設定</a>
-                        </div>
-                    </div>                
+                        <!-- ポータルに流し込むメニューのテンプレート（非表示） -->
+                        <template id="system-menu-template">
+                            <div role="menu" aria-label="System settings menu" style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:0.375rem;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);padding:0.25rem 0;width:14rem;">
+                                <a href="{{ route('admin.shop.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('店舗情報') }}</a>
+                                <a href="{{ route('admin.price.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('料金情報') }}</a>
+                                <a href="{{ route('admin.car-type-prices.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('車両タイプ別料金') }}</a>
+                                <a href="{{ route('admin.settings.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('システム設定') }}</a>
+                                <a href="{{ route('admin.privacy.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('プライバシーポリシー') }}</a>
+                                <a href="{{ route('admin.terms.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('利用規約') }}</a>
+                                <a href="{{ route('admin.cancel.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('キャンセルポリシー') }}</a>
+                                <a href="{{ route('admin.options.index') }}" role="menuitem" style="display:block;padding:0.5rem 1rem;font-size:0.875rem;color:#374151;text-decoration:none;">{{ __('オプション設定') }}</a>
+                            </div>
+                        </template>
+                    </div>
+
+                    <script>
+                    (function(){
+                        const trigger = document.getElementById('system-settings-trigger');
+                        const tpl = document.getElementById('system-menu-template');
+                        let portal = null;
+                        let open = false;
+
+                        function createPortalOnce(){
+                            if (portal) return portal;
+                            portal = document.createElement('div');
+                            portal.setAttribute('id','system-settings-portal');
+                            portal.setAttribute('role','presentation');
+                            portal.style.position = 'fixed';
+                            portal.style.inset = '0px';
+                            portal.style.pointerEvents = 'none';
+                            portal.style.zIndex = '2147483647';
+                            const panel = document.createElement('div');
+                            panel.innerHTML = tpl.innerHTML.trim();
+                            panel.firstElementChild.style.pointerEvents = 'auto';
+                            panel.firstElementChild.addEventListener('mouseover', e => { if (e.target.tagName === 'A') e.target.style.backgroundColor = '#f3f4f6'; });
+                            panel.firstElementChild.addEventListener('mouseout', e => { if (e.target.tagName === 'A') e.target.style.backgroundColor = 'transparent'; });
+                            portal.appendChild(panel.firstElementChild);
+                            document.body.appendChild(portal);
+                            return portal;
+                        }
+
+                        function positionPortal(){
+                            const rect = trigger.getBoundingClientRect();
+                            const panel = portal.firstElementChild;
+                            panel.style.position = 'fixed';
+                            panel.style.top = `${Math.round(rect.bottom + 6)}px`;
+                            panel.style.left = `${Math.round(rect.left)}px`;
+                        }
+
+                        function openMenu(){
+                            createPortalOnce();
+                            positionPortal();
+                            portal.style.display = 'block';
+                            open = true;
+                            trigger.setAttribute('aria-expanded','true');
+                        }
+
+                        function closeMenu(){
+                            if (!portal) return;
+                            portal.style.display = 'none';
+                            open = false;
+                            trigger.setAttribute('aria-expanded','false');
+                        }
+
+                        function toggleMenu(){
+                            if (!open) openMenu(); else closeMenu();
+                        }
+
+                        function onOutsideClick(e){
+                            if (!open) return;
+                            const panel = portal && portal.firstElementChild;
+                            if (!panel) return;
+                            if (e.target === trigger || trigger.contains(e.target)) return;
+                            if (panel.contains(e.target)) return;
+                            closeMenu();
+                        }
+
+                        function onEscape(e){
+                            if (e.key === 'Escape') closeMenu();
+                        }
+
+                        function onRelayout(){
+                            if (!open) return;
+                            positionPortal();
+                        }
+
+                        if (trigger){
+                            trigger.addEventListener('click', (e)=>{ e.preventDefault(); toggleMenu(); });
+                            window.addEventListener('scroll', onRelayout, true);
+                            window.addEventListener('resize', onRelayout, true);
+                            document.addEventListener('click', onOutsideClick, true);
+                            document.addEventListener('keydown', onEscape, true);
+                        }
+                    })();
+                    </script>                
                 </div>
             </div>
             <!-- Settings Dropdown -->
