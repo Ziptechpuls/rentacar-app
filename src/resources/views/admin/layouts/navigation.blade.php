@@ -30,10 +30,9 @@
                         {{ __('ダッシュボード') }}
                     </x-nav-link>
                     <!-- システム設定ドロップダウン -->
-                    <div class="relative" inline-flex items-center" x-data="{ dropdownOpen: false }">
-                        <x-nav-link
-                            :href="route('admin.shop.index')" :active="request()->is('admin/settings*')"
-                            @click.prevent="dropdownOpen = !dropdownOpen"
+                    <div class="relative inline-flex items-center" x-data="{ dropdownOpen: false }" x-init="console.log('Alpine.js loaded for dropdown')">
+                        <button
+                            @click="dropdownOpen = !dropdownOpen; console.log('Dropdown clicked, state:', dropdownOpen)"
                             @keydown.escape="dropdownOpen = false"
                             class="inline-flex items-center h-full px-1 pt-1 border-b-2 text-sm font-medium leading-5 transition duration-150 ease-in-out"
                             x-bind:class="dropdownOpen ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
@@ -50,7 +49,7 @@
                             >
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
-                        </x-nav-link>
+                        </button>
                         <div
                             x-show="dropdownOpen"
                             @click.away="dropdownOpen = false"
@@ -62,6 +61,7 @@
                             <a href="{{ route('admin.price.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">料金情報</a>
 
                             <a href="{{ route('admin.car-type-prices.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">車両タイプ別料金</a>
+                            <a href="{{ route('admin.settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">システム設定</a>
                             <a href="{{ route('admin.privacy.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">プライバシーポリシー</a>
                             <a href="{{ route('admin.terms.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">利用規約</a>
                             <a href="{{ route('admin.cancel.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:text-gray-900 focus:bg-gray-50 transition duration-150 ease-in-out">キャンセルポリシー</a>

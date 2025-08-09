@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\PrivacyController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Admin\CancelController;
 use App\Http\Controllers\Admin\OptionController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\ShopController;
 use App\Http\Controllers\Admin\ExpenseCategoryController;
 use App\Http\Controllers\Admin\CarTypePriceController;
@@ -118,6 +119,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('cancel', [CancelController::class, 'index'])->name('cancel.index');
         Route::get('cancel/edit', [CancelController::class, 'edit'])->name('cancel.edit');
         Route::put('/cancel', [CancelController::class, 'update'])->name('cancel.update');
+
+        // システム設定
+        Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 
         // オプション設定
         Route::resource('options', OptionController::class);
